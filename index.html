@@ -190,6 +190,15 @@ body.is-dragging .group.dropzone .items{border-color:var(--accent)}
 
 /* naam wijzigen */
 .item input.edit{flex:1;min-width:0;font:inherit;font-size:1.02rem;color:var(--ink);background:var(--paper);border:1px solid var(--accent);border-radius:8px;padding:6px 8px;margin:-6px 0}
+
+#lock{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.lockbox{width:100%;max-width:340px;display:grid;gap:14px;justify-items:center;text-align:center}
+.lockbox h1{font-size:1.8rem}
+.lockbox p{margin:0;color:var(--muted)}
+.lockbox .btn{width:100%;padding:14px 16px;font-size:1.05rem}
+.lockbox .fp{width:64px;height:64px;color:var(--accent);margin-bottom:4px}
+.linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;font-size:.85rem;padding:6px}
+.footbtns{display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end}
 </style>
 </head>
 <body>
@@ -206,9 +215,22 @@ body.is-dragging .group.dropzone .items{border-color:var(--accent)}
       <label class="label" for="codeInput">Sleutel</label>
       <input type="password" id="codeInput" name="password" autocomplete="current-password" required>
     </div>
+    <label class="switch" id="bioRow"><input type="checkbox" id="useBio" checked>
+      <span>Beveilig met vingerafdruk<small>Bij elke keer openen ontgrendel je de app met je vingerafdruk of gezichtsherkenning.</small></span></label>
     <div class="err" id="loginErr" role="alert"></div>
     <button class="btn" type="submit" id="loginBtn">Openen</button>
   </form>
+</section>
+
+<section id="lock" hidden>
+  <div class="lockbox">
+    <svg class="fp" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M13 20a11 11 0 0 1 22 0v3"/><path d="M8.5 17.5a16 16 0 0 1 31 0"/><path d="M18 33c1.5-3 2-6.5 2-10a4 4 0 0 1 8 0c0 4-.5 8-2.5 12"/><path d="M24 23c0 6-1.5 11-4.5 15"/><path d="M33 28c-.3 4-1.2 7.5-2.8 10.5"/><path d="M13 25c0 3.5-.8 6.5-2.5 9"/></svg>
+    <h1>Boodschappenlijst</h1>
+    <p>Ontgrendel met je vingerafdruk.</p>
+    <button class="btn" type="button" id="unlockBtn">Ontgrendelen</button>
+    <div class="err" id="lockErr" role="alert"></div>
+    <button class="linkbtn" type="button" id="relogin">Opnieuw inloggen met de sleutel</button>
+  </div>
 </section>
 
 <div class="wrap" id="app" hidden>
@@ -302,7 +324,7 @@ body.is-dragging .group.dropzone .items{border-color:var(--accent)}
 
     <footer>
       <span id="whoami"></span>
-      <button type="button" id="logout">Afmelden</button>
+      <span class="footbtns"><button type="button" id="lockToggle" hidden>Vingerafdruk instellen</button><button type="button" id="logout">Afmelden</button></span>
     </footer>
   </main>
 </div>
@@ -776,6 +798,143 @@ function applyOp(s, op){
   }
 }
 
+/* ===== Vergrendeling met vingerafdruk (passkey + PRF) =====
+   Bij het instellen maakt de telefoon een passkey aan. Elke keer dat je ontgrendelt, levert de
+   passkey (na je vingerafdruk) een geheime waarde op waarmee de sleutel én de bewaarde lijsten
+   worden ontsleuteld. Zonder vingerafdruk staat er op de telefoon alleen versleutelde data. */
+const LOCK_KEY='bs-lock';
+const RELOCK_AFTER=60000; // na een minuut op de achtergrond weer vergrendelen
+let vaultKey=null, sealChain=Promise.resolve(), bgSince=null;
+
+function lockOn(){return !!lsGet(LOCK_KEY)}
+function lockInfo(){return parse(lsGet(LOCK_KEY))}
+const enc=new TextEncoder(), dec=new TextDecoder();
+function toB64(buf){let s='';new Uint8Array(buf).forEach(b=>s+=String.fromCharCode(b));return btoa(s)}
+function fromB64(s){return Uint8Array.from(atob(s),c=>c.charCodeAt(0))}
+function rnd(n){return crypto.getRandomValues(new Uint8Array(n))}
+
+async function prfKey(out){
+  const base=await crypto.subtle.importKey('raw',out,'HKDF',false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'HKDF',hash:'SHA-256',salt:new Uint8Array(32),info:enc.encode('boodschappenlijst-v1')},
+    base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function passkeyPrf(credId,salt){
+  const cred=await navigator.credentials.get({publicKey:{
+    challenge:rnd(32), rpId:location.hostname, userVerification:'required', timeout:60000,
+    allowCredentials:[{type:'public-key',id:credId}],
+    extensions:{prf:{eval:{first:salt}}}}});
+  const r=cred.getClientExtensionResults();
+  const out=r&&r.prf&&r.prf.results&&r.prf.results.first;
+  if(!out) throw Object.assign(new Error('noprf'),{code:'noprf'});
+  return out;
+}
+function sealVault(){
+  if(!vaultKey) return sealChain;
+  const key=vaultKey, payload=JSON.stringify({token,server,pending});
+  sealChain=sealChain.then(async()=>{
+    const info=lockInfo(); if(!info) return;
+    const iv=rnd(12);
+    const ct=await crypto.subtle.encrypt({name:'AES-GCM',iv},key,enc.encode(payload));
+    info.iv=toB64(iv); info.ct=toB64(ct); lsSet(LOCK_KEY,JSON.stringify(info));
+  }).catch(()=>{});
+  return sealChain;
+}
+function wipePlain(){lsDel(K.token);lsDel(K.server);lsDel(K.pending)}
+function bioAvailable(){return !!(window.PublicKeyCredential&&navigator.credentials&&window.isSecureContext)}
+
+/* Instellen: passkey maken en de huidige gegevens versleutelen */
+async function enableLock(){
+  if(!bioAvailable()){toast('Deze telefoon ondersteunt geen ontgrendelen met vingerafdruk in de browser.');return false}
+  try{
+    const salt=rnd(32);
+    const cred=await navigator.credentials.create({publicKey:{
+      challenge:rnd(32), rp:{name:'Boodschappenlijst',id:location.hostname},
+      user:{id:rnd(16),name:(myName||'gebruiker')+' · Boodschappenlijst',displayName:myName||'Boodschappenlijst'},
+      pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+      authenticatorSelection:{authenticatorAttachment:'platform',residentKey:'preferred',userVerification:'required'},
+      timeout:60000, extensions:{prf:{eval:{first:salt}}}}});
+    const ext=cred.getClientExtensionResults();
+    if(ext&&ext.prf&&ext.prf.enabled===false) throw Object.assign(new Error('noprf'),{code:'noprf'});
+    let out=ext&&ext.prf&&ext.prf.results&&ext.prf.results.first;
+    if(!out) out=await passkeyPrf(new Uint8Array(cred.rawId),salt); // sommige telefoons geven de waarde pas bij de eerste keer ontgrendelen
+    vaultKey=await prfKey(out);
+    lsSet(LOCK_KEY,JSON.stringify({credId:toB64(cred.rawId),salt:toB64(salt)}));
+    await sealVault(); wipePlain(); updateLockBtn();
+    toast('Vingerafdruk ingesteld. Voortaan ontgrendel je de app hiermee.');
+    return true;
+  }catch(e){
+    vaultKey=null; lsDel(LOCK_KEY); updateLockBtn();
+    toast(e&&e.code==='noprf'
+      ?'Je wachtwoordbeheerder ondersteunt dit niet. Gebruik die van Google (Android) of iCloud-sleutelhanger (iPhone). De app werkt nu zonder vingerafdruk.'
+      :'Vingerafdruk instellen is niet gelukt. De app werkt nu zonder vingerafdruk; je kunt het onderaan opnieuw proberen.');
+    return false;
+  }
+}
+async function disableLock(){
+  await sealChain; lsDel(LOCK_KEY); vaultKey=null;
+  lsSet(K.token,token); lsSet(K.server,JSON.stringify(server)); lsSet(K.pending,JSON.stringify(pending));
+  updateLockBtn(); toast('Vingerafdruk uitgezet.');
+}
+
+/* Ontgrendelen */
+let unlocking=false;
+async function unlock(){
+  if(unlocking) return; unlocking=true;
+  $('lockErr').textContent=''; $('unlockBtn').disabled=true;
+  try{
+    const info=lockInfo();
+    const out=await passkeyPrf(fromB64(info.credId),fromB64(info.salt));
+    const key=await prfKey(out);
+    const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:fromB64(info.iv)},key,fromB64(info.ct));
+    const v=JSON.parse(dec.decode(plain));
+    vaultKey=key; token=v.token; server=fixState(v.server)||emptyState(); pending=v.pending||[];
+    UI.loaded=server.version>0; sha=null; etag=null;
+    $('lock').hidden=true; showApp();
+  }catch(e){
+    $('lockErr').textContent = e&&e.name==='NotAllowedError'?'Niet ontgrendeld. Tik op de knop om het opnieuw te proberen.'
+      : e&&e.code==='noprf'?'Deze passkey kan de app niet ontgrendelen. Log opnieuw in met de sleutel.'
+      : 'Ontgrendelen lukte niet. Probeer het opnieuw of log opnieuw in met de sleutel.';
+  }
+  $('unlockBtn').disabled=false; unlocking=false;
+}
+function showLock(msg,auto){
+  $('app').hidden=true; $('login').hidden=true; $('lock').hidden=false;
+  $('lockErr').textContent=msg||'';
+  if(auto) setTimeout(unlock,250);
+}
+async function relock(){
+  await sealChain;
+  vaultKey=null; token=null; server=emptyState(); pending=[]; view=null; sha=null; etag=null;
+  closeManage(); $('newList').hidden=true;
+  showLock('',true);
+}
+$('unlockBtn').addEventListener('click',unlock);
+$('relogin').addEventListener('click',()=>{lsDel(LOCK_KEY);vaultKey=null;logout('Log opnieuw in met je naam en de sleutel.')});
+document.addEventListener('visibilitychange',()=>{
+  if(!lockOn()) return;
+  if(document.hidden){bgSince=Date.now();flush();sealVault();return}
+  if(vaultKey&&bgSince&&Date.now()-bgSince>=RELOCK_AFTER) relock();
+  bgSince=null;
+});
+
+/* Knop onderaan: aan- of uitzetten */
+function updateLockBtn(){const b=$('lockToggle'); if(!b) return; b.hidden=!bioAvailable(); b.textContent=lockOn()?'Vingerafdruk uitzetten':'Vingerafdruk instellen'}
+$('lockToggle').addEventListener('click',()=>{lockOn()?disableLock():enableLock()});
+updateLockBtn();
+if(!bioAvailable()&&$('bioRow')) $('bioRow').hidden=true;
+
+/* Al ingelogd zonder vingerafdruk? Eén keer aanbieden. */
+function offerLock(){
+  if(lockOn()||!token||!bioAvailable()||lsGet('bs-bio-asked')||$('bioOffer')) return;
+  const d=document.createElement('div'); d.className='panel'; d.id='bioOffer';
+  d.innerHTML='<label class="lbl">Beveiligen</label><p style="margin:0">Wil je de app voortaan openen met je vingerafdruk?</p>'
+    +'<div class="row"><button class="btn" type="button" id="bioYes">Vingerafdruk instellen</button><button class="btn sec" type="button" id="bioNo">Niet nu</button></div>';
+  document.querySelector('main').prepend(d);
+  const done=()=>{lsSet('bs-bio-asked','1');d.remove()};
+  $('bioYes').addEventListener('click',async()=>{done();await enableLock()});
+  $('bioNo').addEventListener('click',()=>{done();toast('Je kunt het later instellen via de knop onderaan.')});
+}
+
 /* ===== Opslaglaag: privé GitHub-repository =====
    De app staat op GitHub Pages; jullie lijsten staan als één bestand (data.json) in een
    privé-repository. Elke telefoon logt één keer in met de gezamenlijke sleutel (een
@@ -813,7 +972,10 @@ function fixState(s){
   if(!s.learned||Array.isArray(s.learned)) s.learned={};
   s.version=+s.version||0; return s;
 }
-function persist(){lsSet(K.server,JSON.stringify(server));lsSet(K.pending,JSON.stringify(pending))}
+function persist(){
+  if(lockOn()){sealVault();return} // met vingerafdruk: alleen versleuteld bewaren
+  lsSet(K.server,JSON.stringify(server));lsSet(K.pending,JSON.stringify(pending));
+}
 function recompute(){view=JSON.parse(JSON.stringify(server));pending.forEach(op=>applyOp(view,op))}
 let flushT=null;
 function queue(ops){
@@ -929,13 +1091,13 @@ $('logout').addEventListener('click',()=>{
   logout('');
 });
 function showLogin(msg){
-  $('app').hidden=true;$('login').hidden=false;
+  $('app').hidden=true;$('login').hidden=false;$('lock').hidden=true;
   $('nameInput').value=myName;$('loginErr').textContent=msg||'';
   (myName?$('codeInput'):$('nameInput')).focus();
 }
 function showApp(){$('login').hidden=true;$('app').hidden=false;recompute();render();setNet(net);poll()}
 function logout(msg){
-  token=null;lsDel(K.token);lsDel(K.server);lsDel(K.pending);
+  token=null;lsDel(K.token);lsDel(K.server);lsDel(K.pending);lsDel(LOCK_KEY);vaultKey=null;
   server=emptyState();pending=[];sha=null;etag=null;UI.loaded=false;view=null;
   $('logout').dataset.sure='';$('logout').textContent='Afmelden';
   showLogin(msg);
@@ -952,6 +1114,7 @@ $('loginForm').addEventListener('submit',async e=>{
     server=s;UI.loaded=true;persist();$('codeInput').value='';
     showApp();
     if(!sha) act({type:'renameList',id:'__init__',name:'x'}); // eerste keer: data.json aanmaken
+    if($('useBio').checked&&bioAvailable()) enableLock();
   }catch(err){
     $('loginErr').textContent = err.kind==='token'?'Deze sleutel werkt niet. Controleer of hij toegang heeft tot '+DATA_REPO+' (Contents: lezen en schrijven).'
       : err.kind==='offline'?'Geen verbinding. Probeer het opnieuw zodra je internet hebt.'
@@ -966,7 +1129,7 @@ setInterval(poll,5000);
 window.addEventListener('online',poll);
 window.addEventListener('focus',poll);
 if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
-if(token) showApp(); else showLogin('');
+if(lockOn()) showLock('',true); else if(token){showApp();offerLock()} else showLogin('');
 </script>
 </body>
 </html>
