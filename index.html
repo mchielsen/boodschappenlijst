@@ -324,7 +324,7 @@ body.is-dragging .group.dropzone .items{border-color:var(--accent)}
 
     <footer>
       <span id="whoami"></span>
-      <span class="footbtns"><button type="button" id="lockToggle" hidden>Vingerafdruk instellen</button><button type="button" id="logout">Afmelden</button></span>
+      <span class="footbtns"><button type="button" id="installBtn">Op beginscherm zetten</button><button type="button" id="lockToggle" hidden>Vingerafdruk instellen</button><button type="button" id="logout">Afmelden</button></span>
     </footer>
   </main>
 </div>
@@ -935,6 +935,47 @@ function offerLock(){
   $('bioNo').addEventListener('click',()=>{done();toast('Je kunt het later instellen via de knop onderaan.')});
 }
 
+/* ===== Op het beginscherm zetten =====
+   Android/Chrome: eigen knop die de installatievraag van Chrome opent.
+   iPhone: korte uitleg (Safari kan dit alleen via de Deel-knop).
+   Ingebouwde browsers (vanuit WhatsApp, Claude, GitHub-app): uitleg om de pagina in Chrome/Safari te openen. */
+let installEvt=null;
+const isStandalone=()=>window.matchMedia('(display-mode: standalone)').matches||navigator.standalone===true;
+const isIOS=()=>/iphone|ipad|ipod/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+const isInApp=()=>/FBAN|FBAV|Instagram|WhatsApp|Line\/|GitHub|; wv\)/i.test(navigator.userAgent);
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();installEvt=e;updateInstallBtn();offerInstall()});
+window.addEventListener('appinstalled',()=>{installEvt=null;updateInstallBtn();const o=$('installOffer');if(o)o.remove();toast('De app staat nu op je beginscherm.')});
+
+function updateInstallBtn(){const b=$('installBtn'); if(b) b.hidden=isStandalone()}
+function installHelp(){
+  if(isIOS()) return '<b>iPhone:</b> open deze pagina in <b>Safari</b>, tik onderin op de Deel-knop (vierkantje met pijl omhoog) en kies <b>Zet op beginscherm</b>.';
+  if(isInApp()) return 'Je zit in een ingebouwde browser. Tik op ⋮ en kies <b>Openen in Chrome</b>. Tik daar op ⋮ > <b>App installeren</b> (of <b>Toevoegen aan startscherm</b> > <b>Installeren</b>).';
+  return 'Tik in <b>Chrome</b> rechtsboven op ⋮ en kies <b>App installeren</b> of <b>Toevoegen aan startscherm</b> > <b>Installeren</b>. Zie je dat niet? Je zit dan waarschijnlijk in een ingebouwde browser: kies ⋮ > <b>Openen in Chrome</b> en probeer het daar.';
+}
+function showInstallPanel(html,withBtn){
+  let d=$('installOffer'); if(d) d.remove();
+  d=document.createElement('div'); d.className='panel'; d.id='installOffer';
+  d.innerHTML='<label class="lbl">App installeren</label><p style="margin:0">'+html+'</p><div class="row">'
+    +(withBtn?'<button class="btn" type="button" id="installYes">Installeren</button>':'')
+    +'<button class="btn sec" type="button" id="installNo">'+(withBtn?'Niet nu':'Sluiten')+'</button></div>';
+  document.querySelector('main').prepend(d);
+  if(withBtn) $('installYes').addEventListener('click',doInstall);
+  $('installNo').addEventListener('click',()=>{lsSet('bs-install-asked','1');d.remove()});
+}
+async function doInstall(){
+  if(installEvt){
+    const e=installEvt; installEvt=null;
+    try{e.prompt(); await e.userChoice}catch(err){}
+    const o=$('installOffer'); if(o) o.remove();
+  }else showInstallPanel(installHelp(),false);
+}
+function offerInstall(){
+  if(isStandalone()||lsGet('bs-install-asked')||$('app').hidden||!installEvt||$('installOffer')) return;
+  showInstallPanel('Zet de Boodschappenlijst als app op je beginscherm, dan open je hem met één tik.',true);
+}
+$('installBtn').addEventListener('click',doInstall);
+updateInstallBtn();
+
 /* ===== Opslaglaag: privé GitHub-repository =====
    De app staat op GitHub Pages; jullie lijsten staan als één bestand (data.json) in een
    privé-repository. Elke telefoon logt één keer in met de gezamenlijke sleutel (een
@@ -1095,7 +1136,7 @@ function showLogin(msg){
   $('nameInput').value=myName;$('loginErr').textContent=msg||'';
   (myName?$('codeInput'):$('nameInput')).focus();
 }
-function showApp(){$('login').hidden=true;$('app').hidden=false;recompute();render();setNet(net);poll()}
+function showApp(){$('login').hidden=true;$('app').hidden=false;recompute();render();setNet(net);poll();setTimeout(offerInstall,1500)}
 function logout(msg){
   token=null;lsDel(K.token);lsDel(K.server);lsDel(K.pending);lsDel(LOCK_KEY);vaultKey=null;
   server=emptyState();pending=[];sha=null;etag=null;UI.loaded=false;view=null;
