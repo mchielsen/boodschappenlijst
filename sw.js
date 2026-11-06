@@ -1,6 +1,6 @@
 /* Boodschappenlijst — service worker: zorgt dat de app opent zonder internet.
    De lijsten zelf komen altijd via api.php en worden in de app bewaard. */
-const CACHE = 'boodschappenlijst-v10';
+const CACHE = 'boodschappenlijst-v11';
 const SHELL = [
   './',
   './index.html',
@@ -29,7 +29,7 @@ self.addEventListener('fetch', e => {
 
   // Eerst het netwerk (altijd de nieuwste versie), anders de bewaarde kopie.
   e.respondWith(
-    fetch(req)
+    fetch(req, {cache: 'no-cache'}) // altijd bij GitHub controleren of er een nieuwere versie is
       .then(res => {
         if (res.ok) {
           const copy = res.clone();
