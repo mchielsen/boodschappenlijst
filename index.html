@@ -1248,10 +1248,10 @@ async function gh(method, body, useToken, extra){
   if(res.status===401) throw new ApiError('token',401);
   if(res.status===403||res.status===429){
     if(res.headers.get('x-ratelimit-remaining')==='0'||res.status===429) throw new ApiError('rate',res.status);
-    throw new ApiError('token',403);
+    throw new ApiError('forbidden',403); // vaak tijdelijk (GitHub of mobiel netwerk)
   }
   if(res.status===404&&method==='GET') return {missing:true};
-  if(res.status===404) throw new ApiError('token',404); // repository niet gevonden of geen toegang
+  if(res.status===404) throw new ApiError('notfound',404);
   if(res.status===409||res.status===422) throw new ApiError('conflict',res.status);
   if(!res.ok||!data) throw new ApiError('server',res.status);
   return {data, etag:res.headers.get('etag')};
@@ -1267,17 +1267,43 @@ async function checkAccess(useToken){
 async function fetchRemote(useToken, conditional){
   const r=await gh('GET', null, useToken, conditional&&etag?{'If-None-Match':etag}:null);
   if(r.unchanged) return null;
-  if(r.missing){sha=null;etag=null;return defaultState()}
+  if(r.missing){
+    // Hadden we al gegevens? Dan is 'niet gevonden' een storing, geen lege opslag: niets overschrijven.
+    if(sha||server.version>0) throw new ApiError('notfound',404);
+    sha=null;etag=null;return defaultState();
+  }
   sha=r.data.sha; etag=r.etag;
   let s=null; try{s=fixState(JSON.parse(b64decode(r.data.content)))}catch(e){}
   if(!s) throw new ApiError('broken',0);
   return s;
 }
+/* Nooit vanzelf uitloggen: alles blijft bewaard en de app probeert het later opnieuw.
+   Weigert GitHub de sleutel een paar minuten achter elkaar, dan verschijnt een melding met een knop. */
+let authFails=0, authSince=0;
 function handleErr(e){
-  if(e.kind==='token'){logout('De sleutel werkt niet (meer). Log opnieuw in met de gezamenlijke sleutel.');return}
+  if(e.kind==='token'||e.kind==='forbidden'||e.kind==='notfound'){
+    if(!authFails) authSince=Date.now(); authFails++;
+    setNet('error');
+    if(e.kind==='token'&&authFails>=3&&Date.now()-authSince>=60000) showAuthProblem();
+    return;
+  }
   if(e.kind==='broken'){setNet('error');toast('Het opslagbestand op GitHub is beschadigd. Er is niets overschreven.');return}
-  if(e.kind==='rate'){setNet('error');toast('GitHub vraagt even rust. Probeer het over een paar minuten opnieuw.');return}
+  if(e.kind==='rate'){setNet('error');return}
   setNet(e.kind==='offline'?'offline':'error');
+}
+function showAuthProblem(){
+  if($('authPanel')) return;
+  const d=document.createElement('div'); d.className='panel typo'; d.id='authPanel';
+  d.innerHTML='<label class="lbl">Sleutel geweigerd</label><p style="margin:0">GitHub accepteert de sleutel niet meer. Is hij verwijderd of vervangen? Je wijzigingen blijven op deze telefoon bewaard tot je opnieuw inlogt.</p>'
+    +'<div class="row"><button class="btn" type="button" id="authRelogin">Opnieuw inloggen</button><button class="btn sec" type="button" id="authLater">Later</button></div>';
+  document.querySelector('main').prepend(d);
+  $('authRelogin').addEventListener('click',()=>relogin());
+  $('authLater').addEventListener('click',()=>d.remove());
+}
+// Opnieuw inloggen met een nieuwe sleutel, zonder openstaande wijzigingen kwijt te raken
+function relogin(){
+  const keep=pending.slice(); lsSet('bs-pending-keep',JSON.stringify(keep));
+  logout('Log opnieuw in met je naam en de (nieuwe) sleutel.');
 }
 
 let flushing=false;
@@ -1321,14 +1347,14 @@ async function poll(){
   polling=false;
 }
 function setNet(n){
-  net=n;
+  net=n; if(n==='ok'){authFails=0; const a=$('authPanel'); if(a) a.remove()}
   const st=$('status'),t=$('statusText');
   st.className='status '+(n==='ok'?'ok':(n==='offline'||n==='error')?'offline':'');
   const p=pending.length;
   t.textContent = n==='ok' ? 'Gesynchroniseerd'
     : n==='sync' ? 'Opslaan…'
     : n==='offline' ? (p?'Offline · '+p+(p===1?' wijziging wacht':' wijzigingen wachten'):'Offline')
-    : n==='error' ? 'Niet bijgewerkt' : 'Verbinden…';
+    : n==='error' ? (authFails?'Geen toegang, probeert opnieuw':'Niet bijgewerkt') : 'Verbinden…';
 }
 
 /* ---------- inloggen ---------- */
@@ -1357,7 +1383,9 @@ $('loginForm').addEventListener('submit',async e=>{
     await checkAccess(c);
     const s=await fetchRemote(c,false);
     token=c;myName=n;lsSet(K.token,c);lsSet(K.name,n);
-    server=s;UI.loaded=true;persist();$('codeInput').value='';
+    server=s;UI.loaded=true;
+    const kept=parse(lsGet('bs-pending-keep')); if(Array.isArray(kept)&&kept.length){pending=kept.concat(pending)} lsDel('bs-pending-keep');
+    persist();$('codeInput').value='';
     showApp();
     if(!sha) act({type:'renameList',id:'__init__',name:'x'}); // eerste keer: data.json aanmaken
     if($('useBio').checked&&bioAvailable()) enableLock();
