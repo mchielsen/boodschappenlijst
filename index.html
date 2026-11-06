@@ -203,6 +203,20 @@ li.item.flash{animation:flash 1.8s ease-out}
 .typorow p{margin:0}
 .typorow small{display:block;color:var(--muted);font-size:.8rem}
 
+/* kopen vanaf een datum */
+.fromtag{flex:none;font-size:.75rem;font-weight:600;color:var(--sky);background:var(--sky-soft);border-radius:999px;padding:3px 8px;white-space:nowrap}
+.group.later .ghead h3{color:var(--sky)}
+.group.later .txt{color:var(--muted)}
+.item.editing{flex-wrap:wrap;align-items:flex-start}
+.editbox{flex:1 1 200px;min-width:0;display:grid;gap:8px}
+.editbox .edit{margin:0}
+.fromrow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:.85rem;color:var(--muted)}
+.fromrow input[type=date]{width:auto;flex:1 1 150px;padding:7px 9px}
+.fromrow .mini{background:none;border:0;color:var(--accent);font-weight:600;font-size:.85rem;padding:4px 0}
+.txtwrap{flex:1;min-width:0;display:grid;gap:3px;justify-items:start}
+.txtwrap .txt{width:100%}
+.txtwrap .fromtag{padding:2px 7px;font-size:.72rem}
+
 #lock{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .lockbox{width:100%;max-width:340px;display:grid;gap:14px;justify-items:center;text-align:center}
 .lockbox h1{font-size:1.8rem}
@@ -458,7 +472,7 @@ function isGrouped(l){
   if(typeof l.grouped==='boolean') return l.grouped;
   return l.id==='supermarkt'||/supermarkt|albert heijn|(^|\s)ah(\s|$)/i.test(l.name);
 }
-function openCount(l){const its=itemsOf(l.id);return kindOf(l)==='trip'?its.filter(i=>i.status!=='packed').length:its.filter(i=>!i.done).length}
+function openCount(l){const its=itemsOf(l.id).filter(i=>!isLater(i));return kindOf(l)==='trip'?its.filter(i=>i.status!=='packed').length:its.filter(i=>!i.done).length}
 function isFresh(i){return !UI.placed.has(i.id)&&(UI.addedHere.has(i.id)||(i.createdAt||0)>UI.openedAt)}
 
 function render(){
@@ -495,23 +509,26 @@ function render(){
 
 function gripHtml(i){return '<button class="grip" type="button" aria-label="Verplaats '+esc(i.text)+' (pijltjestoetsen of slepen)">'+GRIP+'</button>'}
 function txtHtml(i){return '<button class="txt" type="button" data-edit="1" aria-label="'+esc(i.text)+', naam wijzigen">'+esc(i.text)+'</button>'}
+function fromHtml(i){return i.from&&(isLater(i)||i.status)?'<span class="fromtag">vanaf '+esc(fmtDate(i.from))+'</span>':''}
+function withFrom(txt,i){const f=fromHtml(i);return f?'<span class="txtwrap">'+txt+f+'</span>':txt}
 function whoHtml(i){const n=i.by?whoName(i.by):'';return n?'<span class="who" title="Toegevoegd door '+esc(n)+'">'+esc(n.trim().charAt(0).toUpperCase())+'</span>':''}
 
 function rowShop(i,grouped){
   const txt=txtHtml(i);
   return '<li class="item'+(i.done?' done':'')+'" data-id="'+esc(i.id)+'">'+(i.done?'':gripHtml(i))
     +'<button class="check" type="button" data-act="done" aria-pressed="'+!!i.done+'" aria-label="'+(i.done?'Terugzetten: ':'Afvinken: ')+esc(i.text)+'">'+CHECK+'</button>'
-    +txt+whoHtml(i)+'<button class="x" type="button" data-act="del" aria-label="Verwijder '+esc(i.text)+'">'+XSVG+'</button></li>';
+    +withFrom(txt,i)+whoHtml(i)+'<button class="x" type="button" data-act="del" aria-label="Verwijder '+esc(i.text)+'">'+XSVG+'</button></li>';
 }
 
 function renderShop(l){
   const all=itemsOf(l.id), grouped=isGrouped(l);
-  const todo=all.filter(i=>!i.done).sort(bySort);
+  const later=all.filter(i=>!i.done&&isLater(i)).sort((a,b)=>a.from.localeCompare(b.from)||bySort(a,b));
+  const todo=all.filter(i=>!i.done&&!isLater(i)).sort(bySort);
   const done=all.filter(i=>i.done).sort((a,b)=>(b.doneAt||0)-(a.doneAt||0));
   $('listSub').textContent=grouped&&todo.length?'Ingedeeld op AH-looproute':'';
   let html;
   if(!todo.length){
-    html='<div class="empty">'+(done.length?'<strong>Alles is afgevinkt</strong>Klaar met deze lijst.':'<strong>Deze lijst is leeg</strong>Typ hierboven wat je nodig hebt.')+'</div>';
+    html='<div class="empty">'+(later.length?'<strong>Nu niets te halen</strong>Alles op deze lijst is voor later.':done.length?'<strong>Alles is afgevinkt</strong>Klaar met deze lijst.':'<strong>Deze lijst is leeg</strong>Typ hierboven wat je nodig hebt.')+'</div>';
   }else if(!grouped){
     html='<ul class="items" data-zone="todo">'+todo.map(i=>rowShop(i,false)).join('')+'</ul>';
   }else{
@@ -525,6 +542,7 @@ function renderShop(l){
     order.forEach(c=>{html+='<section class="group"><div class="ghead"><h3>'+esc(CAT_NAME[c]||'Overig')+'</h3><span class="gn">'+groups[c].length+'</span></div><ul class="items" data-zone="todo" data-cat="'+c+'">'+groups[c].map(i=>rowShop(i,true)).join('')+'</ul></section>'});
     html+='</div>';
   }
+  if(later.length) html+='<section class="group later"><div class="ghead"><h3>Later kopen</h3><span class="gn">'+later.length+'</span></div><ul class="items" data-zone="later">'+later.map(i=>rowShop(i,false)).join('')+'</ul></section>';
   $('todoWrap').innerHTML=html;
   $('doneWrap').hidden=!done.length;
   $('doneLabel').textContent='In de kar ('+done.length+')';
@@ -542,7 +560,7 @@ function rowTrip(i){
   const lead=(s==='home'||s==='packed')
     ?'<button class="check" type="button" data-act="pack" aria-pressed="'+(s==='packed')+'" aria-label="'+(s==='packed'?'Uitpakken: ':'Ingepakt: ')+esc(i.text)+'">'+CHECK+'</button>':'';
   const back=(s==='home')?'<button class="pill" type="button" data-act="open" aria-label="Terug naar nalopen">↺</button>':'';
-  return '<li class="item'+(s==='packed'?' packed':'')+'" data-id="'+esc(i.id)+'">'+gripHtml(i)+lead+txtHtml(i)+right+back
+  return '<li class="item'+(s==='packed'?' packed':'')+'" data-id="'+esc(i.id)+'">'+gripHtml(i)+lead+withFrom(txtHtml(i),i)+right+back
     +'<button class="x" type="button" data-act="del" aria-label="Verwijder '+esc(i.text)+'">'+XSVG+'</button></li>';
 }
 
@@ -576,41 +594,85 @@ function renderTrip(l){
    Tik op een product: de naam wordt een invoerveld. Enter of ergens anders tikken = opslaan, Esc = annuleren. */
 function startEdit(li,it){
   const t=li.querySelector('.txt'); if(!t) return;
-  const inp=document.createElement('input');
-  inp.type='text'; inp.className='edit'; inp.id='edit-'+it.id; inp.value=it.text; inp.maxLength=200;
-  inp.setAttribute('enterkeyhint','done'); inp.setAttribute('aria-label','Nieuwe naam voor '+it.text);
-  t.replaceWith(inp); UI.editing=it.id;
+  const box=document.createElement('div'); box.className='editbox';
+  box.innerHTML='<input type="text" class="edit" id="edit-'+esc(it.id)+'" maxlength="200" enterkeyhint="done" aria-label="Naam">'
+    +'<div class="fromrow"><label for="from-'+esc(it.id)+'">Kopen vanaf</label><input type="date" id="from-'+esc(it.id)+'">'
+    +'<button type="button" class="mini" data-clear="1">Geen datum</button></div>'
+    +'<div class="row"><button type="button" class="btn" data-save="1">Opslaan</button><button type="button" class="btn sec" data-cancel="1">Annuleren</button></div>';
+  t.replaceWith(box); li.classList.add('editing'); UI.editing=it.id;
+  const inp=box.querySelector('.edit'), dt=box.querySelector('input[type=date]');
+  inp.value=it.text; dt.value=it.from||''; dt.min=todayStr();
   inp.focus(); try{inp.setSelectionRange(inp.value.length,inp.value.length)}catch(e){}
   let closed=false;
   const finish=save=>{
-    if(closed) return; closed=true; UI.editing=null;
-    const v=inp.value.trim().replace(/\s+/g,' ').slice(0,200);
-    if(save&&v&&v!==it.text) act({type:'renameItem',id:it.id,text:v}); else render();
+    if(closed) return; closed=true; UI.editing=null; li.classList.remove('editing');
+    const v=cap(inp.value.trim().replace(/\s+/g,' ').slice(0,200)), f=dt.value||null, ops=[];
+    if(save&&v&&v!==it.text) ops.push({type:'renameItem',id:it.id,text:v});
+    if(save&&f!==(it.from||null)) ops.push({type:'setFrom',id:it.id,from:f});
+    if(ops.length){queue(ops); if(f&&f!==(it.from||null)&&f>todayStr()) toast('"'+(v||it.text)+'" staat onder Later kopen, vanaf '+fmtDate(f)+'.')}
+    else render();
   };
-  inp.addEventListener('keydown',e=>{
-    if(e.key==='Enter'){e.preventDefault();finish(true)}
+  box.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&e.target===inp){e.preventDefault();finish(true)}
     else if(e.key==='Escape'){e.preventDefault();finish(false)}
   });
-  inp.addEventListener('blur',()=>finish(true));
+  box.addEventListener('click',e=>{
+    if(e.target.closest('[data-save]')) finish(true);
+    else if(e.target.closest('[data-cancel]')) finish(false);
+    else if(e.target.closest('[data-clear]')){dt.value='';inp.focus()}
+  });
+  // Ergens anders tikken = opslaan
+  box.addEventListener('focusout',e=>{ if(!box.contains(e.relatedTarget)) setTimeout(()=>{ if(!box.contains(document.activeElement)) finish(true) },150) });
+}
+
+/* ---------- kopen vanaf een datum ---------- */
+const MONTHS={jan:1,januari:1,feb:2,februari:2,mrt:3,maart:3,apr:4,april:4,mei:5,jun:6,juni:6,jul:7,juli:7,aug:8,augustus:8,sep:9,sept:9,september:9,okt:10,oktober:10,nov:11,november:11,dec:12,december:12};
+function pad(n){return String(n).padStart(2,'0')}
+function todayStr(){const d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())}
+function isLater(i){return !!i.from&&i.from>todayStr()}
+function fmtDate(iso){const [y,m,d]=iso.split('-').map(Number);const dt=new Date(y,m-1,d);
+  return dt.toLocaleDateString('nl-NL',{weekday:'short',day:'numeric',month:'short'})+(y!==new Date().getFullYear()?' '+y:'')}
+function mkDate(d,m,y){
+  if(!(m>=1&&m<=12&&d>=1&&d<=31)) return null;
+  const now=new Date(); let yy=y?(y<100?2000+y:y):now.getFullYear();
+  let dt=new Date(yy,m-1,d); if(dt.getMonth()!==m-1) return null;
+  if(!y&&dt<new Date(now.getFullYear(),now.getMonth(),now.getDate())) dt=new Date(yy+1,m-1,d); // al voorbij: volgend jaar
+  return dt.getFullYear()+'-'+pad(dt.getMonth()+1)+'-'+pad(dt.getDate());
+}
+// "kerstkransjes vanaf 1 december" / "oliebollen vanaf 28-12" → {text, from}
+function splitFrom(text){
+  const m=text.match(/^(.*?)\s+(?:vanaf|v\.a\.|va)\s+(.+)$/i); if(!m) return {text,from:null};
+  const rest=m[2].trim().toLowerCase().replace(/\.$/,'');
+  let r=rest.match(/^(\d{1,2})\s*[-\/.]\s*(\d{1,2})(?:\s*[-\/.]\s*(\d{2,4}))?$/), from=null;
+  const DAYS={zondag:0,zo:0,maandag:1,ma:1,dinsdag:2,di:2,woensdag:3,wo:3,donderdag:4,do:4,vrijdag:5,vr:5,zaterdag:6,za:6};
+  const plus=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())};
+  if(rest==='morgen') from=plus(1);
+  else if(rest==='overmorgen') from=plus(2);
+  else if(rest==='volgende week') from=plus(7);
+  else if(rest in DAYS){let n=(DAYS[rest]-new Date().getDay()+7)%7; from=plus(n||7)}
+  else if(r) from=mkDate(+r[1],+r[2],r[3]?+r[3]:null);
+  else if((r=rest.match(/^(\d{1,2})\s+([a-z]+)\.?(?:\s+(\d{4}))?$/))&&MONTHS[r[2]]) from=mkDate(+r[1],MONTHS[r[2]],r[3]?+r[3]:null);
+  return from?{text:m[1].trim(),from}:{text,from:null};
 }
 
 /* ---------- acties ---------- */
 function addItems(raw){
-  const parts=raw.split(',').map(s=>cap(s.trim().replace(/\s+/g,' '))).filter(Boolean);
+  const parts=raw.split(',').map(s=>s.trim().replace(/\s+/g,' ')).filter(Boolean).map(s=>{const r=splitFrom(s);r.text=cap(r.text);return r}).filter(r=>r.text);
   if(!parts.length||!UI.current) return;
   const l=view.lists[UI.current], trip=kindOf(l)==='trip';
   // Wat staat er al op deze lijst? (vergelijken zonder hoeveelheden: "2 pak melk" = "melk")
   const existing=new Map();
   itemsOf(UI.current).forEach(i=>{const k=itemKey(i.text); if(!existing.has(k)||!i.done) existing.set(k,i)});
   const ops=[], already=[], back=[], seen=new Set();
-  for(const text of parts){
+  for(const {text,from} of parts){
     const k=itemKey(text);
     if(seen.has(k)) continue; seen.add(k);
     const hit=existing.get(k);
     if(hit&&!trip&&hit.done){ops.push({type:'setDone',id:hit.id,done:false});back.push(hit);continue}
     if(hit){already.push(hit);continue}
-    ops.push({type:'addItem',id:newId(),listId:UI.current,text:text.slice(0,200),by:byValue()});
+    ops.push(Object.assign({type:'addItem',id:newId(),listId:UI.current,text:text.slice(0,200),by:byValue()},from?{from}:{}));
   }
+  const dated=ops.filter(o=>o.from);
   ops.forEach(op=>{if(op.type==='addItem') UI.addedHere.add(op.id)});
   if(ops.length) queue(ops);
   checkTypos(ops.filter(o=>o.type==='addItem'));
@@ -618,6 +680,7 @@ function addItems(raw){
   const msg=[];
   if(already.length) msg.push(names(already)+(already.length===1?' staat':' staan')+' al op de lijst');
   if(back.length) msg.push(names(back)+(back.length===1?' lag':' lagen')+' al in de kar en '+(back.length===1?'staat':'staan')+' weer op de lijst');
+  if(dated.length&&!msg.length) toast(dated.length===1?'"'+dated[0].text+'" staat onder Later kopen, vanaf '+fmtDate(dated[0].from)+'.':dated.length+' producten staan onder Later kopen.');
   if(msg.length){
     const added=ops.filter(o=>o.type==='addItem').length;
     toast(msg.join('. ')+(added?'. De rest is toegevoegd.':'.'));
@@ -913,6 +976,7 @@ function applyOp(s, op){
     case 'addItem': {
       const l=s.lists[op.listId]; if(!l||s.items[op.id]) break;
       const n={id:op.id,listId:op.listId,text:op.text,by:op.by||'',createdAt:now};
+      if(op.from) n.from=op.from;
       if(kindOf(l)==='trip'){n.status='open';n.sentTo=null}
       else{n.done=false;n.doneAt=null;
         const src=op.fromTrip&&s.items[op.fromTrip];
@@ -933,6 +997,7 @@ function applyOp(s, op){
         if(op.status&&it.status) it.status=op.status}
       break;
     case 'renameItem': if(it&&op.text) it.text=op.text; break;
+    case 'setFrom': if(it){ if(op.from) it.from=op.from; else delete it.from } break;
     case 'deleteItem': delete s.items[op.id]; break;
     case 'clearDone': for(const k in s.items){const x=s.items[k];if(x.listId===op.listId&&x.done) delete s.items[k]} break;
   }
