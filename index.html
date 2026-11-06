@@ -196,6 +196,13 @@ body.is-dragging .group.dropzone .items{border-color:var(--accent)}
 li.item.flash{animation:flash 1.8s ease-out}
 @media (prefers-reduced-motion: reduce){li.item.flash{animation:none;outline:2px solid var(--warn);outline-offset:-2px}}
 
+/* typfout-vraag */
+.panel.typo{border-color:var(--warn)}
+.typorow{display:grid;gap:8px}
+.typorow+.typorow{border-top:1px solid var(--line);padding-top:10px}
+.typorow p{margin:0}
+.typorow small{display:block;color:var(--muted);font-size:.8rem}
+
 #lock{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .lockbox{width:100%;max-width:340px;display:grid;gap:14px;justify-items:center;text-align:center}
 .lockbox h1{font-size:1.8rem}
@@ -606,6 +613,7 @@ function addItems(raw){
   }
   ops.forEach(op=>{if(op.type==='addItem') UI.addedHere.add(op.id)});
   if(ops.length) queue(ops);
+  checkTypos(ops.filter(o=>o.type==='addItem'));
   const names=a=>a.map(i=>'"'+i.text+'"').join(', ').replace(/, ([^,]*)$/,' en $1');
   const msg=[];
   if(already.length) msg.push(names(already)+(already.length===1?' staat':' staan')+' al op de lijst');
@@ -619,6 +627,86 @@ function addItems(raw){
     }));
   }
 }
+/* ---------- typfouten ----------
+   Een woord dat de app niet kent en dat 1 letter (lange woorden: 2 letters) verschilt van een
+   bekend product, levert een vraag op: "Bedoel je ...?". Nooit automatisch verbeteren. */
+const EXTRA_WORDS='bio biologisch biologische geroosterde gebrande ongezoete gezoete gepelde gekookte gegrilde gemarineerde gezouten ongezouten halfvolle magere volle verse vers verse mini maxi extra light zero naturel zout zoet zoete pittig gerookt gerookte gemalen geraspt gesneden mager magere halfvol halfvolle vol volle ongezouten gezouten rood rode wit witte groen groene geel gele bruin bruine zwart zwarte grote kleine fijn fijne grof grove plakjes blokjes stukjes reepjes sate saus kip rund varken lam ijs cola thee koffie water melk brood kaas vis vlees ei eieren pak pakje zak fles pot blik doos bak bakje rol tube voor onderweg de het een en met zonder van'.split(' ');
+const OK_KEY='bs-known-words';
+function knownWords(){return new Set(parse(lsGet(OK_KEY))||[])}
+function rememberWord(w){const k=knownWords();k.add(w);lsSet(OK_KEY,JSON.stringify([...k].slice(-500)))}
+function vocab(excludeIds){
+  const v=new Set(EXTRA_WORDS);
+  KW.forEach(x=>x.k.split(' ').forEach(w=>w.length>1&&v.add(w)));
+  Object.keys(view.learned||{}).forEach(k=>k.split(' ').forEach(w=>v.add(w)));
+  Object.values(view.items).forEach(i=>{if(!excludeIds.has(i.id)) itemKey(i.text).split(' ').forEach(w=>v.add(w))});
+  knownWords().forEach(w=>v.add(w));
+  return v;
+}
+function osa(a,b){ // aantal letters verschil (incl. omgedraaide letters)
+  const m=a.length,n=b.length; if(Math.abs(m-n)>2) return 9;
+  const d=Array.from({length:m+1},(_,i)=>{const r=new Array(n+1).fill(0);r[0]=i;return r});
+  for(let j=0;j<=n;j++) d[0][j]=j;
+  for(let i=1;i<=m;i++) for(let j=1;j<=n;j++){
+    const c=a[i-1]===b[j-1]?0:1;
+    d[i][j]=Math.min(d[i-1][j]+1,d[i][j-1]+1,d[i-1][j-1]+c);
+    if(i>1&&j>1&&a[i-1]===b[j-2]&&a[i-2]===b[j-1]) d[i][j]=Math.min(d[i][j],d[i-2][j-2]+1);
+  }
+  return d[m][n];
+}
+function isKnown(t,v){
+  if(v.has(t)) return true;
+  const base=t.replace(/(tjes|tje|jes|je)$/,''); if(base.length>=3&&v.has(base)) return true; // verkleinwoord
+  for(const w of v){ if(w.length>=4&&t.length-w.length>=3&&(t.endsWith(w)||t.startsWith(w))) return true } // samengesteld woord
+  return false;
+}
+function suggestWord(t,v){
+  if(t.length<4||/\d/.test(t)||isKnown(t,v)) return null;
+  const max=t.length>=8?2:1; let best=null,bd=9;
+  for(const w of v){ if(w.length<3) continue; const d=osa(t,w); if(d<bd||(d===bd&&best&&w.length===t.length&&best.length!==t.length)){bd=d;best=w} }
+  return bd<=max?best:null;
+}
+function checkTypos(addOps){
+  if(!addOps.length) return;
+  const ids=new Set(addOps.map(o=>o.id)), v=vocab(ids), found=[];
+  for(const op of addOps){
+    const words=norm(op.text).split(' ');
+    for(const t of words){
+      const sug=suggestWord(t,v); if(!sug) continue;
+      const re=new RegExp('(^|[^\\p{L}])'+t.replace(/[-]/g,'\\-')+'(?=$|[^\\p{L}])','iu');
+      const fixed=cap(op.text.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(re,(m,p)=>p+sug));
+      if(fixed!==op.text){found.push({id:op.id,from:op.text,to:fixed,word:t});break}
+    }
+  }
+  if(found.length) showTypos(found);
+}
+function showTypos(list){
+  let d=$('typoPanel');
+  if(!d){d=document.createElement('div');d.className='panel typo';d.id='typoPanel';document.querySelector('main').prepend(d)}
+  const prev=(d._list||[]).filter(x=>view.items[x.id]);
+  d._list=prev.concat(list.filter(x=>!prev.some(p=>p.id===x.id)));
+  const draw=()=>{
+    d._list=d._list.filter(x=>view.items[x.id]);
+    if(!d._list.length){d.remove();return}
+    d.innerHTML='<label class="lbl">Typfout?</label>'+d._list.map((x,i)=>
+      '<div class="typorow"><p>Bedoel je <b>'+esc(x.to)+'</b>?<small>Je typte: '+esc(x.from)+'</small></p>'
+      +'<div class="row"><button class="btn" type="button" data-fix="'+i+'">Verbeteren</button><button class="btn sec" type="button" data-keep="'+i+'">Klopt zo</button></div></div>').join('');
+  };
+  draw();
+  d.onclick=e=>{
+    const b=e.target.closest('button'); if(!b) return;
+    const x=d._list[+(b.dataset.fix??b.dataset.keep)]; if(!x) return;
+    d._list=d._list.filter(y=>y!==x);
+    if(b.dataset.keep!==undefined){rememberWord(x.word);toast('"'+x.from+'" blijft zo staan. De app onthoudt dit woord.')}
+    else{
+      const it=view.items[x.id];
+      const dup=it&&itemsOf(it.listId).find(i=>i.id!==it.id&&!i.done&&itemKey(i.text)===itemKey(x.to));
+      if(dup){act({type:'deleteItem',id:x.id});toast('"'+dup.text+'" stond al op de lijst.')}
+      else if(it){act({type:'renameItem',id:x.id,text:x.to});toast('Verbeterd naar "'+x.to+'".')}
+    }
+    draw();
+  };
+}
+
 function addTemplate(){
   const have=new Set(itemsOf(UI.current).map(i=>itemKey(i.text)));
   const add=TRIP_TEMPLATE.filter(t=>!have.has(itemKey(t)));

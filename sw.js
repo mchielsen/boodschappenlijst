@@ -1,6 +1,6 @@
 /* Boodschappenlijst — service worker: zorgt dat de app opent zonder internet.
    De lijsten zelf komen altijd via api.php en worden in de app bewaard. */
-const CACHE = 'boodschappenlijst-v14';
+const CACHE = 'boodschappenlijst-v15';
 const SHELL = [
   './',
   './index.html',
