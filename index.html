@@ -370,7 +370,7 @@ const CATS = [
 ];
 const CAT_NAME = Object.fromEntries(CATS.map(c=>[c[0],c[1]]));
 const CAT_ORDER = Object.fromEntries(CATS.map((c,i)=>[c[0],i]));
-const PHRASES = ['blauwe bessen','rode ui','witte kool','rode biet','zoete aardappel','jonge kaas','belegen kaas','oude kaas','geraspte kaas','plakken kaas','kipfilet beleg','halfvolle melk','volle melk','griekse yoghurt','creme fraiche','zure room','cottage cheese','bruisend water','ice tea','red bull','ginger ale','jus d orange','rode wijn','witte wijn','alcoholvrij bier','after sun','wc papier','gerookte zalm','bruine bonen','witte bonen','groene thee','dolce gusto','spinazie a la creme','groene zeep','wc blokjes'];
+const PHRASES = ['blauwe bessen','rode peper','rode ui','witte kool','rode biet','zoete aardappel','jonge kaas','belegen kaas','oude kaas','geraspte kaas','plakken kaas','kipfilet beleg','halfvolle melk','volle melk','griekse yoghurt','creme fraiche','zure room','cottage cheese','bruisend water','ice tea','red bull','ginger ale','jus d orange','rode wijn','witte wijn','alcoholvrij bier','after sun','wc papier','gerookte zalm','bruine bonen','witte bonen','groene thee','dolce gusto','spinazie a la creme','groene zeep','wc blokjes'];
 const KW = [];
 for(const [cat,,words] of CATS){
   if(!words) continue;
@@ -388,7 +388,17 @@ function itemKey(t){
   return toks.join(' ') || norm(t);
 }
 function classify(text){
-  const s = ' '+itemKey(text)+' ';
+  const key=itemKey(text), s=' '+key+' ', toks=key.split(' ');
+  // 1. Woordcombinaties en hele woorden die precies zo bekend zijn ("rode wijn", "pindakaas", "prei")
+  for(const {k,cat} of KW){ if(k.includes(' ')&&s.includes(' '+k+' ')) return cat }
+  for(const t of toks){ const hit=KW.find(x=>x.k===t); if(hit) return hit.cat }
+  // 2. Samengestelde woorden: het laatste deel bepaalt wat het is (tomaten-soep, kippen-soep, appel-taart)
+  let best=null;
+  for(const t of toks) for(const {k,cat} of KW){
+    if(k.length>=3&&!k.includes(' ')&&t.length>k.length&&t.endsWith(k)&&(!best||k.length>best.k.length)) best={k,cat};
+  }
+  if(best) return best.cat;
+  // 3. Anders: ergens in de naam een bekend woord
   for(const {k,cat} of KW){
     if(k.length<=3||WHOLE.has(k)){ if(new RegExp('[^a-z]'+k.replace(/[-]/g,'\\-')+'[^a-z]').test(s)) return cat; }
     else if(s.includes(k)) return cat;
