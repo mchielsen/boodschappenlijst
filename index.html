@@ -191,6 +191,11 @@ body.is-dragging .group.dropzone .items{border-color:var(--accent)}
 /* naam wijzigen */
 .item input.edit{flex:1;min-width:0;font:inherit;font-size:1.02rem;color:var(--ink);background:var(--paper);border:1px solid var(--accent);border-radius:8px;padding:6px 8px;margin:-6px 0}
 
+/* al op de lijst: even oplichten */
+@keyframes flash{0%,40%{background:var(--warn-soft)}100%{background:transparent}}
+li.item.flash{animation:flash 1.8s ease-out}
+@media (prefers-reduced-motion: reduce){li.item.flash{animation:none;outline:2px solid var(--warn);outline-offset:-2px}}
+
 #lock{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .lockbox{width:100%;max-width:340px;display:grid;gap:14px;justify-items:center;text-align:center}
 .lockbox h1{font-size:1.8rem}
@@ -586,9 +591,33 @@ function startEdit(li,it){
 function addItems(raw){
   const parts=raw.split(',').map(s=>cap(s.trim().replace(/\s+/g,' '))).filter(Boolean);
   if(!parts.length||!UI.current) return;
-  const ops=parts.map(text=>({type:'addItem',id:newId(),listId:UI.current,text:text.slice(0,200),by:byValue()}));
-  ops.forEach(op=>UI.addedHere.add(op.id));
-  queue(ops);
+  const l=view.lists[UI.current], trip=kindOf(l)==='trip';
+  // Wat staat er al op deze lijst? (vergelijken zonder hoeveelheden: "2 pak melk" = "melk")
+  const existing=new Map();
+  itemsOf(UI.current).forEach(i=>{const k=itemKey(i.text); if(!existing.has(k)||!i.done) existing.set(k,i)});
+  const ops=[], already=[], back=[], seen=new Set();
+  for(const text of parts){
+    const k=itemKey(text);
+    if(seen.has(k)) continue; seen.add(k);
+    const hit=existing.get(k);
+    if(hit&&!trip&&hit.done){ops.push({type:'setDone',id:hit.id,done:false});back.push(hit);continue}
+    if(hit){already.push(hit);continue}
+    ops.push({type:'addItem',id:newId(),listId:UI.current,text:text.slice(0,200),by:byValue()});
+  }
+  ops.forEach(op=>{if(op.type==='addItem') UI.addedHere.add(op.id)});
+  if(ops.length) queue(ops);
+  const names=a=>a.map(i=>'"'+i.text+'"').join(', ').replace(/, ([^,]*)$/,' en $1');
+  const msg=[];
+  if(already.length) msg.push(names(already)+(already.length===1?' staat':' staan')+' al op de lijst');
+  if(back.length) msg.push(names(back)+(back.length===1?' lag':' lagen')+' al in de kar en '+(back.length===1?'staat':'staan')+' weer op de lijst');
+  if(msg.length){
+    const added=ops.filter(o=>o.type==='addItem').length;
+    toast(msg.join('. ')+(added?'. De rest is toegevoegd.':'.'));
+    requestAnimationFrame(()=>[...already,...back].forEach(i=>{
+      const li=document.querySelector('li.item[data-id="'+CSS.escape(i.id)+'"]');
+      if(li){li.classList.remove('flash');void li.offsetWidth;li.classList.add('flash')}
+    }));
+  }
 }
 function addTemplate(){
   const have=new Set(itemsOf(UI.current).map(i=>itemKey(i.text)));
