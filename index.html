@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="app-version" content="07-11 19:31">
+<meta name="app-version" content="07-11 19:37">
 <style>
 /* Eén smalle kolom zoals een boodschappenbriefje; vaste kop met lijst-tabs, invoer bovenaan.
    Supermarkt: groepen in AH-looproute. Vakantielijst: nalopen → kopen → inpakken → ingepakt. */
@@ -1074,39 +1074,66 @@ function unpackToken(buf){
 }
 function b64url(buf){return toB64(buf).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
 
+// Een passkey maken. Bij een onbekende fout van de telefoon (NotReadableError) probeert de app
+// het automatisch op een eenvoudigere manier: eerst zonder versleutelingsvraag bij het aanmaken,
+// daarna zonder de sleutel in de passkey (dan werkt de vingerafdruk wel, maar niet het herstellen na wissen).
+async function createPasskey(userId,prfAtCreate,salt){
+  const pk={challenge:rnd(32), rp:{name:'Boodschappenlijst',id:location.hostname},
+    user:{id:userId,name:(myName||'gebruiker')+' · Boodschappenlijst',displayName:myName||'Boodschappenlijst'},
+    pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
+    authenticatorSelection:{authenticatorAttachment:'platform',residentKey:'preferred',userVerification:'required'},
+    timeout:60000};
+  pk.extensions=prfAtCreate?{prf:{eval:{first:salt}}}:{prf:{}};
+  const cred=await navigator.credentials.create({publicKey:pk});
+  const ext=cred.getClientExtensionResults();
+  if(ext&&ext.prf&&ext.prf.enabled===false) throw Object.assign(new Error('noprf'),{code:'noprf'});
+  let out=ext&&ext.prf&&ext.prf.results&&ext.prf.results.first;
+  if(!out) out=await passkeyPrf(new Uint8Array(cred.rawId),salt); // sommige telefoons geven de waarde pas bij de eerste keer ontgrendelen
+  return {cred,out};
+}
 async function enableLock(){
   if(!bioAvailable()){toast('Deze telefoon ondersteunt geen ontgrendelen met vingerafdruk in de browser.');return false}
-  try{
-    const salt=rnd(32);
-    const cred=await navigator.credentials.create({publicKey:{
-      challenge:rnd(32), rp:{name:'Boodschappenlijst',id:location.hostname},
-      user:{id:packToken(token)||rnd(16),name:(myName||'gebruiker')+' · Boodschappenlijst',displayName:myName||'Boodschappenlijst'},
-      pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
-      authenticatorSelection:{authenticatorAttachment:'platform',residentKey:'preferred',userVerification:'required'},
-      timeout:60000, extensions:{prf:{eval:{first:salt}}}}});
-    const ext=cred.getClientExtensionResults();
-    if(ext&&ext.prf&&ext.prf.enabled===false) throw Object.assign(new Error('noprf'),{code:'noprf'});
-    let out=ext&&ext.prf&&ext.prf.results&&ext.prf.results.first;
-    if(!out) out=await passkeyPrf(new Uint8Array(cred.rawId),salt); // sommige telefoons geven de waarde pas bij de eerste keer ontgrendelen
-    vaultKey=await prfKey(out);
-    const old=lockInfo(), packed=!!packToken(token);
-    lsSet(LOCK_KEY,JSON.stringify({credId:toB64(cred.rawId),salt:toB64(salt),v:packed?2:1}));
-    if(packed) act({type:'setUser',cred:toB64(cred.rawId),name:myName||''});
-    // oude passkey van deze app opruimen in de wachtwoordmanager (als de browser dat kan)
-    if(old&&old.credId&&old.credId!==toB64(cred.rawId)&&PublicKeyCredential.signalUnknownCredential){
-      try{await PublicKeyCredential.signalUnknownCredential({rpId:location.hostname,credentialId:b64url(fromB64(old.credId))})}catch(e){}
+  const oldInfo=lockInfo(), oldKey=vaultKey, packedId=packToken(token);
+  const tries=[];
+  if(packedId){tries.push({id:packedId,prf:true,v:2},{id:packedId,prf:false,v:2})}
+  tries.push({id:rnd(16),prf:true,v:1},{id:rnd(16),prf:false,v:1});
+  let lastErr=null, used=null;
+  for(const t of tries){
+    try{
+      const salt=rnd(32);
+      const {cred,out}=await createPasskey(t.id,t.prf,salt);
+      vaultKey=await prfKey(out);
+      lsSet(LOCK_KEY,JSON.stringify({credId:toB64(cred.rawId),salt:toB64(salt),v:t.v}));
+      if(t.v===2) act({type:'setUser',cred:toB64(cred.rawId),name:myName||''});
+      // oude passkey van deze app opruimen in de wachtwoordmanager (als de browser dat kan)
+      if(oldInfo&&oldInfo.credId&&oldInfo.credId!==toB64(cred.rawId)&&PublicKeyCredential.signalUnknownCredential){
+        try{await PublicKeyCredential.signalUnknownCredential({rpId:location.hostname,credentialId:b64url(fromB64(oldInfo.credId))})}catch(e){}
+      }
+      await sealVault(); wipePlain(); updateLockBtn();
+      used=t; lsSet('bs-bio-err', tries.indexOf(t)?'gelukt bij poging '+(tries.indexOf(t)+1)+' ('+lastErr+')':'');
+      if(!lsGet('bs-bio-err')) lsDel('bs-bio-err');
+      break;
+    }catch(e){
+      lastErr=(e&&(e.code||e.name)||'?')+(e&&e.message?': '+String(e.message).slice(0,80):'');
+      // Alleen bij een onbekende fout van de telefoon op een andere manier proberen; bij annuleren stoppen.
+      if(!(e&&(e.name==='NotReadableError'||e.name==='UnknownError'||e.name==='NotSupportedError'||e.name==='InvalidStateError'))) break;
+      toast('Nog een keer proberen op een andere manier… bevestig opnieuw je vingerafdruk.');
     }
-    await sealVault(); wipePlain(); updateLockBtn();
-    toast('Vingerafdruk ingesteld. Voortaan ontgrendel je de app hiermee.');
-    return true;
-  }catch(e){
-    vaultKey=null; lsDel(LOCK_KEY); updateLockBtn();
-    lsSet('bs-bio-err',(e&&(e.code||e.name)||'?')+(e&&e.message?': '+String(e.message).slice(0,80):''));
-    toast((e&&e.code==='noprf'
-      ?'Je wachtwoordbeheerder ondersteunt dit niet. Gebruik die van Google (Android) of iCloud-sleutelhanger (iPhone). De app werkt nu zonder vingerafdruk.'
-      :'Vingerafdruk instellen is niet gelukt. De app werkt nu zonder vingerafdruk; je kunt het onderaan opnieuw proberen.')+' (Reden: '+lsGet('bs-bio-err')+')');
-    return false;
   }
+  if(used){
+    toast(used.v===2?'Vingerafdruk ingesteld. Voortaan ontgrendel je de app hiermee.'
+      :'Vingerafdruk ingesteld. Let op: wist Chrome de gegevens van de app, dan heb je de sleutel nog één keer nodig.');
+    return true;
+  }
+  // Mislukt: de vorige vingerafdruk-instelling (als die er was) blijft gewoon werken
+  if(oldInfo&&oldKey){lsSet(LOCK_KEY,JSON.stringify(oldInfo));vaultKey=oldKey;sealVault()}
+  else{vaultKey=null;lsDel(LOCK_KEY)}
+  updateLockBtn();
+  lsSet('bs-bio-err',lastErr||'?');
+  toast((/^noprf/.test(lastErr)
+    ?'Je wachtwoordbeheerder ondersteunt dit niet. Gebruik die van Google (Android) of iCloud-sleutelhanger (iPhone).'
+    :'Vingerafdruk instellen is niet gelukt.')+(oldInfo?' Je huidige vingerafdruk blijft werken.':' De app werkt zonder vingerafdruk; je kunt het onderaan opnieuw proberen.')+' (Reden: '+lastErr+')');
+  return false;
 }
 async function disableLock(){
   await sealChain; lsDel(LOCK_KEY); vaultKey=null;
