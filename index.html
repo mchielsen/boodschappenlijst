@@ -16,6 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
+<meta name="app-version" content="07-11 18:59">
 <style>
 /* Eén smalle kolom zoals een boodschappenbriefje; vaste kop met lijst-tabs, invoer bovenaan.
    Supermarkt: groepen in AH-looproute. Vakantielijst: nalopen → kopen → inpakken → ingepakt. */
@@ -223,6 +224,7 @@ li.item.flash{animation:flash 1.8s ease-out}
 .lockbox p{margin:0;color:var(--muted)}
 .lockbox .btn{width:100%;padding:14px 16px;font-size:1.05rem}
 .lockbox .fp{width:64px;height:64px;color:var(--accent);margin-bottom:4px}
+.diag{margin:8px 0 0;font-size:.72rem;line-height:1.4;color:var(--muted);word-break:break-word}
 .linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;font-size:.85rem;padding:6px}
 .footbtns{display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end}
 </style>
@@ -1367,6 +1369,25 @@ function showLogin(msg){
   $('nameInput').value=myName;$('loginErr').textContent=msg||'';
   (myName?$('codeInput'):$('nameInput')).focus();
   if(!msg) tryStoredCredential();
+  showDiag();
+}
+/* Technische regel onder het inlogscherm: helpt om te zien waarom de telefoon opnieuw om de sleutel vraagt */
+async function showDiag(){
+  let d=$('diag');
+  if(!d){d=document.createElement('p');d.id='diag';d.className='diag';$('loginForm').appendChild(d)}
+  const desktop=window.innerWidth>screen.width*1.4;
+  let persisted='?',est='';
+  try{persisted=navigator.storage&&navigator.storage.persisted?((await navigator.storage.persisted())?'ja':'nee'):'n.v.t.'}catch(e){}
+  try{if(navigator.storage&&navigator.storage.estimate){const q=await navigator.storage.estimate();est=Math.round((q.quota||0)/1e6)+' MB'}}catch(e){}
+  const lo=parse(lsGet('bs-logout'));
+  const mode=isStandalone()?'app':'browser';
+  const ua=navigator.userAgent, br=/MiuiBrowser|XiaoMi/i.test(ua)?'Mi Browser':/SamsungBrowser/.test(ua)?'Samsung':/Firefox/.test(ua)?'Firefox':/EdgA/.test(ua)?'Edge':/Chrome\/(\d+)/.test(ua)?'Chrome '+RegExp.$1:'?';
+  d.textContent=['Info',br,mode,'breedte '+window.innerWidth+'/'+screen.width+'px','beschermd '+persisted,est&&('ruimte '+est),
+    'eerder ingelogd '+(lsGet('bs-ever')?'ja':'nee'),lo?'afgemeld '+new Date(lo.t).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'niet afgemeld',
+    'versie '+(document.querySelector('meta[name=app-version]')||{}).content].filter(Boolean).join(' · ');
+  if(desktop&&!$('deskHint')){const h=document.createElement('p');h.id='deskHint';h.className='err';
+    h.textContent='Alles is kleiner omdat Chrome de desktopweergave gebruikt. Open de pagina in Chrome, tik op ⋮ en zet "Desktopsite" uit.';
+    $('loginForm').insertBefore(h,d)}
 }
 /* Naam + sleutel in de wachtwoordbeheerder van de telefoon (Chrome/Android). Daarmee is opnieuw
    inloggen één tik, ook als de telefoon de gegevens van de app heeft gewist. */
