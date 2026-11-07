@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="app-version" content="07-11 18:59">
+<meta name="app-version" content="07-11 19:22">
 <style>
 /* Eén smalle kolom zoals een boodschappenbriefje; vaste kop met lijst-tabs, invoer bovenaan.
    Supermarkt: groepen in AH-looproute. Vakantielijst: nalopen → kopen → inpakken → ingepakt. */
@@ -224,6 +224,8 @@ li.item.flash{animation:flash 1.8s ease-out}
 .lockbox p{margin:0;color:var(--muted)}
 .lockbox .btn{width:100%;padding:14px 16px;font-size:1.05rem}
 .lockbox .fp{width:64px;height:64px;color:var(--accent);margin-bottom:4px}
+.biologin{padding:14px 16px;font-size:1.05rem}
+.or{margin:2px 0 -4px;text-align:center;font-size:.85rem;color:var(--muted)}
 .diag{margin:8px 0 0;font-size:.72rem;line-height:1.4;color:var(--muted);word-break:break-word}
 .linkbtn{background:none;border:0;color:var(--muted);text-decoration:underline;font-size:.85rem;padding:6px}
 .footbtns{display:flex;gap:16px;flex-wrap:wrap;justify-content:flex-end}
@@ -235,6 +237,8 @@ li.item.flash{animation:flash 1.8s ease-out}
   <form id="loginForm" autocomplete="on">
     <h1>Boodschappenlijst</h1>
     <p>Vul je naam en de gezamenlijke sleutel in. Dat hoeft maar één keer per telefoon.</p>
+    <button class="btn biologin" type="button" id="bioLogin">Inloggen met vingerafdruk</button>
+    <p class="or" id="bioOr">of met je naam en de sleutel</p>
     <div class="field">
       <label class="label" for="nameInput">Je naam</label>
       <input type="text" id="nameInput" name="name" placeholder="Bijv. Martijn" maxlength="30" autocomplete="username" required>
@@ -999,6 +1003,7 @@ function applyOp(s, op){
         if(op.status&&it.status) it.status=op.status}
       break;
     case 'renameItem': if(it&&op.text) it.text=op.text; break;
+    case 'setUser': if(op.cred){ s.users=s.users||{}; s.users[op.cred]=op.name||'' } break;
     case 'setFrom': if(it){ if(op.from) it.from=op.from; else delete it.from } break;
     case 'deleteItem': delete s.items[op.id]; break;
     case 'clearDone': for(const k in s.items){const x=s.items[k];if(x.listId===op.listId&&x.done) delete s.items[k]} break;
@@ -1050,13 +1055,32 @@ function wipePlain(){lsDel(K.token);lsDel(K.server);lsDel(K.pending)}
 function bioAvailable(){return !!(window.PublicKeyCredential&&navigator.credentials&&window.isSecureContext)}
 
 /* Instellen: passkey maken en de huidige gegevens versleutelen */
+/* De sleutel in de passkey zelf bewaren (het "user id"-veld, max. 64 bytes). Dat staat in
+   Google Wachtwoordmanager / iCloud-sleutelhanger en overleeft het wissen van sitegegevens in de
+   browser. De sleutel komt alleen terug naar deze app, na je vingerafdruk. */
+const TOK_ALPH='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_';
+function packToken(tok){
+  const m=/^github_pat_([A-Za-z0-9_]{1,82})$/.exec(tok||''); if(!m) return null;
+  let n=0n; for(const ch of m[1]) n=n*63n+BigInt(TOK_ALPH.indexOf(ch));
+  const out=new Uint8Array(64); out[0]=0xB1; out[1]=m[1].length;
+  for(let i=63;i>=2;i--){out[i]=Number(n&255n); n>>=8n}
+  return n===0n?out:null;
+}
+function unpackToken(buf){
+  const u=new Uint8Array(buf||[]); if(u.length!==64||u[0]!==0xB1) return null;
+  let n=0n; for(let i=2;i<64;i++) n=(n<<8n)|BigInt(u[i]);
+  let s=''; for(let i=0;i<u[1];i++){s=TOK_ALPH[Number(n%63n)]+s; n/=63n}
+  return 'github_pat_'+s;
+}
+function b64url(buf){return toB64(buf).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')}
+
 async function enableLock(){
   if(!bioAvailable()){toast('Deze telefoon ondersteunt geen ontgrendelen met vingerafdruk in de browser.');return false}
   try{
     const salt=rnd(32);
     const cred=await navigator.credentials.create({publicKey:{
       challenge:rnd(32), rp:{name:'Boodschappenlijst',id:location.hostname},
-      user:{id:rnd(16),name:(myName||'gebruiker')+' · Boodschappenlijst',displayName:myName||'Boodschappenlijst'},
+      user:{id:packToken(token)||rnd(16),name:(myName||'gebruiker')+' · Boodschappenlijst',displayName:myName||'Boodschappenlijst'},
       pubKeyCredParams:[{type:'public-key',alg:-7},{type:'public-key',alg:-257}],
       authenticatorSelection:{authenticatorAttachment:'platform',residentKey:'preferred',userVerification:'required'},
       timeout:60000, extensions:{prf:{eval:{first:salt}}}}});
@@ -1065,7 +1089,13 @@ async function enableLock(){
     let out=ext&&ext.prf&&ext.prf.results&&ext.prf.results.first;
     if(!out) out=await passkeyPrf(new Uint8Array(cred.rawId),salt); // sommige telefoons geven de waarde pas bij de eerste keer ontgrendelen
     vaultKey=await prfKey(out);
-    lsSet(LOCK_KEY,JSON.stringify({credId:toB64(cred.rawId),salt:toB64(salt)}));
+    const old=lockInfo(), packed=!!packToken(token);
+    lsSet(LOCK_KEY,JSON.stringify({credId:toB64(cred.rawId),salt:toB64(salt),v:packed?2:1}));
+    if(packed) act({type:'setUser',cred:toB64(cred.rawId),name:myName||''});
+    // oude passkey van deze app opruimen in de wachtwoordmanager (als de browser dat kan)
+    if(old&&old.credId&&old.credId!==toB64(cred.rawId)&&PublicKeyCredential.signalUnknownCredential){
+      try{await PublicKeyCredential.signalUnknownCredential({rpId:location.hostname,credentialId:b64url(fromB64(old.credId))})}catch(e){}
+    }
     await sealVault(); wipePlain(); updateLockBtn();
     toast('Vingerafdruk ingesteld. Voortaan ontgrendel je de app hiermee.');
     return true;
@@ -1097,6 +1127,7 @@ async function unlock(){
     vaultKey=key; token=v.token; server=fixState(v.server)||emptyState(); pending=v.pending||[];
     UI.loaded=server.version>0; sha=null; etag=null;
     $('lock').hidden=true; showApp();
+    if(!info.v||info.v<2) setTimeout(offerUpgrade,800);
   }catch(e){
     $('lockErr').textContent = e&&e.name==='NotAllowedError'?'Niet ontgrendeld. Tik op de knop om het opnieuw te proberen.'
       : e&&e.code==='noprf'?'Deze passkey kan de app niet ontgrendelen. Log opnieuw in met de sleutel.'
@@ -1141,6 +1172,44 @@ function offerLock(){
   $('bioYes').addEventListener('click',async()=>{done();await enableLock()});
   $('bioNo').addEventListener('click',()=>{done();toast('Je kunt het later instellen via de knop onderaan.')});
 }
+
+/* Inloggen met vingerafdruk als de telefoon de gegevens van de app heeft gewist */
+async function passkeyLogin(){
+  if(!bioAvailable()) return;
+  $('loginErr').textContent=''; $('bioLogin').disabled=true;
+  try{
+    const salt=rnd(32);
+    const cred=await navigator.credentials.get({publicKey:{challenge:rnd(32),rpId:location.hostname,userVerification:'required',timeout:60000,
+      extensions:{prf:{eval:{first:salt}}}}});
+    const tok=unpackToken(cred.response.userHandle);
+    if(!tok) throw Object.assign(new Error('old'),{code:'old'});
+    const r=cred.getClientExtensionResults(), out=r&&r.prf&&r.prf.results&&r.prf.results.first;
+    await finishLogin(null,tok);
+    const credId=toB64(cred.rawId);
+    const nm=(server.users&&server.users[credId])||myName||'';
+    if(nm){myName=nm;lsSet(K.name,nm);render()}
+    if(out){ vaultKey=await prfKey(out); lsSet(LOCK_KEY,JSON.stringify({credId,salt:toB64(salt),v:2})); await sealVault(); wipePlain(); updateLockBtn() }
+    toast('Welkom terug'+(nm?', '+nm:'')+'!');
+  }catch(e){
+    $('loginErr').textContent = e&&e.code==='old'?'Deze vingerafdruk is nog van een oudere versie van de app. Log één keer in met je naam en de sleutel; daarna kan het wel.'
+      : e&&e.name==='NotAllowedError'?'Niet gelukt. Geen vingerafdruk voor deze app gevonden, of geannuleerd.'
+      : e&&e.kind==='offline'?'Geen verbinding. Probeer het opnieuw zodra je internet hebt.'
+      : e&&e.kind?'De sleutel in je vingerafdruk werkt niet meer. Log in met de nieuwe sleutel.'
+      : 'Inloggen met vingerafdruk lukte niet. Log in met je naam en de sleutel.';
+  }
+  $('bioLogin').disabled=false;
+}
+function offerUpgrade(){
+  if($('bioUp')||!lockOn()) return;
+  const d=document.createElement('div'); d.className='panel'; d.id='bioUp';
+  d.innerHTML='<label class="lbl">Vingerafdruk vernieuwen</label><p style="margin:0">Vernieuw je vingerafdruk één keer. Daarna kun je altijd met je vingerafdruk inloggen, ook als Chrome de gegevens van de app wist.</p>'
+    +'<div class="row"><button class="btn" type="button" id="bioUpYes">Vernieuwen</button><button class="btn sec" type="button" id="bioUpNo">Later</button></div>';
+  document.querySelector('main').prepend(d);
+  $('bioUpYes').addEventListener('click',async()=>{d.remove();await enableLock()});
+  $('bioUpNo').addEventListener('click',()=>d.remove());
+}
+$('bioLogin').addEventListener('click',passkeyLogin);
+if(!bioAvailable()){$('bioLogin').hidden=true;$('bioOr').hidden=true}
 
 /* ===== Op het beginscherm zetten =====
    Android/Chrome: eigen knop die de installatievraag van Chrome opent.
@@ -1218,6 +1287,7 @@ function fixState(s){
   if(!s.lists||Array.isArray(s.lists)) s.lists={};
   if(!s.items||Array.isArray(s.items)) s.items={};
   if(!s.learned||Array.isArray(s.learned)) s.learned={};
+  if(!s.users||Array.isArray(s.users)) s.users={};
   s.version=+s.version||0; return s;
 }
 function persist(){
@@ -1416,21 +1486,26 @@ function logout(msg){
   $('logout').dataset.sure='';$('logout').textContent='Afmelden';
   showLogin(msg);
 }
+// Gedeeld door inloggen met de sleutel en met de vingerafdruk
+async function finishLogin(n,c){
+  await checkAccess(c);
+  const s=await fetchRemote(c,false);
+  token=c; if(n){myName=n;lsSet(K.name,n)} lsSet(K.token,c);
+  server=s;UI.loaded=true;
+  const kept=parse(lsGet('bs-pending-keep')); if(Array.isArray(kept)&&kept.length){pending=kept.concat(pending)} lsDel('bs-pending-keep');
+  persist();$('codeInput').value='';
+  keepStorage(); lsSet('bs-ever','1'); lsDel('bs-logout');
+  showApp();
+  if(!sha) act({type:'renameList',id:'__init__',name:'x'}); // eerste keer: data.json aanmaken
+}
 $('loginForm').addEventListener('submit',async e=>{
   e.preventDefault();
   const n=$('nameInput').value.trim().slice(0,30), c=$('codeInput').value.trim();
   if(!n||!c) return;
   $('loginBtn').disabled=true;$('loginErr').textContent='';
   try{
-    await checkAccess(c);
-    const s=await fetchRemote(c,false);
-    token=c;myName=n;lsSet(K.token,c);lsSet(K.name,n);
-    server=s;UI.loaded=true;
-    const kept=parse(lsGet('bs-pending-keep')); if(Array.isArray(kept)&&kept.length){pending=kept.concat(pending)} lsDel('bs-pending-keep');
-    persist();$('codeInput').value='';
-    saveCredential(n,c); keepStorage(); lsSet('bs-ever','1'); lsDel('bs-logout');
-    showApp();
-    if(!sha) act({type:'renameList',id:'__init__',name:'x'}); // eerste keer: data.json aanmaken
+    await finishLogin(n,c);
+    saveCredential(n,c);
     if($('useBio').checked&&bioAvailable()) enableLock();
   }catch(err){
     $('loginErr').textContent = (err.kind==='token'||err.kind==='forbidden'||err.kind==='notfound')?'Deze sleutel werkt niet. Controleer of hij toegang heeft tot '+DATA_REPO+' (Contents: lezen en schrijven).'
