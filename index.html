@@ -235,7 +235,7 @@ li.item.flash{animation:flash 1.8s ease-out}
     <p>Vul je naam en de gezamenlijke sleutel in. Dat hoeft maar één keer per telefoon.</p>
     <div class="field">
       <label class="label" for="nameInput">Je naam</label>
-      <input type="text" id="nameInput" name="name" placeholder="Bijv. Martijn" maxlength="30" autocomplete="given-name" required>
+      <input type="text" id="nameInput" name="name" placeholder="Bijv. Martijn" maxlength="30" autocomplete="username" required>
     </div>
     <div class="field">
       <label class="label" for="codeInput">Sleutel</label>
@@ -1366,9 +1366,30 @@ function showLogin(msg){
   $('app').hidden=true;$('login').hidden=false;$('lock').hidden=true;
   $('nameInput').value=myName;$('loginErr').textContent=msg||'';
   (myName?$('codeInput'):$('nameInput')).focus();
+  if(!msg) tryStoredCredential();
 }
+/* Naam + sleutel in de wachtwoordbeheerder van de telefoon (Chrome/Android). Daarmee is opnieuw
+   inloggen één tik, ook als de telefoon de gegevens van de app heeft gewist. */
+async function saveCredential(n,c){
+  try{ if(window.PasswordCredential) await navigator.credentials.store(new PasswordCredential({id:n,password:c,name:n})) }catch(e){}
+}
+let triedCred=false;
+async function tryStoredCredential(){
+  if(triedCred||!window.PasswordCredential) return; triedCred=true;
+  try{
+    const cred=await navigator.credentials.get({password:true,mediation:'optional'});
+    if(!cred||!cred.password||!$('app').hidden) return;
+    const wiped=!lsGet('bs-ever')&&!lsGet('bs-logout');
+    $('nameInput').value=cred.id; $('codeInput').value=cred.password;
+    $('loginErr').textContent=wiped?'Je telefoon had de gegevens van de app gewist. Je opgeslagen sleutel wordt gebruikt…':'Opgeslagen sleutel wordt gebruikt…';
+    $('loginForm').requestSubmit();
+  }catch(e){}
+}
+// Vraag de browser om de gegevens van de app niet op te ruimen bij weinig opslagruimte
+async function keepStorage(){try{ if(navigator.storage&&navigator.storage.persist&&!(await navigator.storage.persisted())) await navigator.storage.persist() }catch(e){}}
 function showApp(){$('login').hidden=true;$('app').hidden=false;recompute();render();setNet(net);poll();setTimeout(offerInstall,1500)}
 function logout(msg){
+  lsSet('bs-logout',JSON.stringify({t:Date.now(),msg:msg||'Afgemeld'}));
   token=null;lsDel(K.token);lsDel(K.server);lsDel(K.pending);lsDel(LOCK_KEY);vaultKey=null;
   server=emptyState();pending=[];sha=null;etag=null;UI.loaded=false;view=null;
   $('logout').dataset.sure='';$('logout').textContent='Afmelden';
@@ -1386,11 +1407,12 @@ $('loginForm').addEventListener('submit',async e=>{
     server=s;UI.loaded=true;
     const kept=parse(lsGet('bs-pending-keep')); if(Array.isArray(kept)&&kept.length){pending=kept.concat(pending)} lsDel('bs-pending-keep');
     persist();$('codeInput').value='';
+    saveCredential(n,c); keepStorage(); lsSet('bs-ever','1'); lsDel('bs-logout');
     showApp();
     if(!sha) act({type:'renameList',id:'__init__',name:'x'}); // eerste keer: data.json aanmaken
     if($('useBio').checked&&bioAvailable()) enableLock();
   }catch(err){
-    $('loginErr').textContent = err.kind==='token'?'Deze sleutel werkt niet. Controleer of hij toegang heeft tot '+DATA_REPO+' (Contents: lezen en schrijven).'
+    $('loginErr').textContent = (err.kind==='token'||err.kind==='forbidden'||err.kind==='notfound')?'Deze sleutel werkt niet. Controleer of hij toegang heeft tot '+DATA_REPO+' (Contents: lezen en schrijven).'
       : err.kind==='offline'?'Geen verbinding. Probeer het opnieuw zodra je internet hebt.'
       : err.kind==='rate'?'GitHub vraagt even rust. Probeer het over een paar minuten opnieuw.'
       : 'Er ging iets mis bij GitHub ('+err.kind+'). Probeer het opnieuw.';
@@ -1403,6 +1425,7 @@ setInterval(poll,5000);
 window.addEventListener('online',poll);
 window.addEventListener('focus',poll);
 if('serviceWorker' in navigator) window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+if(lockOn()||token){keepStorage();lsSet('bs-ever','1')}
 if(lockOn()) showLock('',true); else if(token){showApp();offerLock()} else showLogin('');
 </script>
 </body>
