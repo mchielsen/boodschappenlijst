@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="app-version" content="07-11 19:22">
+<meta name="app-version" content="07-11 19:31">
 <style>
 /* Eén smalle kolom zoals een boodschappenbriefje; vaste kop met lijst-tabs, invoer bovenaan.
    Supermarkt: groepen in AH-looproute. Vakantielijst: nalopen → kopen → inpakken → ingepakt. */
@@ -460,7 +460,7 @@ function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&l
 // Eerste letter een hoofdletter ("melk" → "Melk", "2 pak eieren" blijft "2 pak eieren")
 function cap(t){if(!t) return t; if(/^ij/.test(t)) return 'IJ'+t.slice(2); return t.charAt(0).toLocaleUpperCase('nl-NL')+t.slice(1)}
 function newId(){return Date.now().toString(36)+Math.random().toString(36).slice(2,9)}
-let toastT; function toast(m){const t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,3000)}
+let toastT; function toast(m){const t=$('toast');t.textContent=m;t.hidden=false;clearTimeout(toastT);toastT=setTimeout(()=>t.hidden=true,m.length>110?8000:3000)}
 
 const UI = {current:lsGet('bs-current'), showDone:true, loaded:false,
             openedAt:Date.now(), addedHere:new Set(), placed:new Set(), hiddenAt:null,
@@ -1101,9 +1101,10 @@ async function enableLock(){
     return true;
   }catch(e){
     vaultKey=null; lsDel(LOCK_KEY); updateLockBtn();
-    toast(e&&e.code==='noprf'
+    lsSet('bs-bio-err',(e&&(e.code||e.name)||'?')+(e&&e.message?': '+String(e.message).slice(0,80):''));
+    toast((e&&e.code==='noprf'
       ?'Je wachtwoordbeheerder ondersteunt dit niet. Gebruik die van Google (Android) of iCloud-sleutelhanger (iPhone). De app werkt nu zonder vingerafdruk.'
-      :'Vingerafdruk instellen is niet gelukt. De app werkt nu zonder vingerafdruk; je kunt het onderaan opnieuw proberen.');
+      :'Vingerafdruk instellen is niet gelukt. De app werkt nu zonder vingerafdruk; je kunt het onderaan opnieuw proberen.')+' (Reden: '+lsGet('bs-bio-err')+')');
     return false;
   }
 }
@@ -1454,7 +1455,7 @@ async function showDiag(){
   const ua=navigator.userAgent, br=/MiuiBrowser|XiaoMi/i.test(ua)?'Mi Browser':/SamsungBrowser/.test(ua)?'Samsung':/Firefox/.test(ua)?'Firefox':/EdgA/.test(ua)?'Edge':/Chrome\/(\d+)/.test(ua)?'Chrome '+RegExp.$1:'?';
   d.textContent=['Info',br,mode,'breedte '+window.innerWidth+'/'+screen.width+'px','beschermd '+persisted,est&&('ruimte '+est),
     'eerder ingelogd '+(lsGet('bs-ever')?'ja':'nee'),lo?'afgemeld '+new Date(lo.t).toLocaleString('nl-NL',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'niet afgemeld',
-    'versie '+(document.querySelector('meta[name=app-version]')||{}).content].filter(Boolean).join(' · ');
+    'versie '+(document.querySelector('meta[name=app-version]')||{}).content, lsGet('bs-bio-err')&&('vingerafdruk-fout: '+lsGet('bs-bio-err'))].filter(Boolean).join(' · ');
   if(desktop&&!$('deskHint')){const h=document.createElement('p');h.id='deskHint';h.className='err';
     h.textContent='Alles is kleiner omdat Chrome de desktopweergave gebruikt. Open de pagina in Chrome, tik op ⋮ en zet "Desktopsite" uit.';
     $('loginForm').insertBefore(h,d)}
