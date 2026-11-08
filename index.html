@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="app-version" content="07-11 22:09">
+<meta name="app-version" content="08-11 01:37">
 <style>
 /* Eén smalle kolom zoals een boodschappenbriefje; vaste kop met lijst-tabs, invoer bovenaan.
    Supermarkt: groepen in AH-looproute. Vakantielijst: nalopen → kopen → inpakken → ingepakt. */
@@ -217,6 +217,26 @@ li.item.flash{animation:flash 1.8s ease-out}
 .txtwrap{flex:1;min-width:0;display:grid;gap:3px;justify-items:start}
 .txtwrap .txt{width:100%}
 .txtwrap .fromtag{padding:2px 7px;font-size:.72rem}
+
+/* Compacte lijst: meer boodschappen op één scherm */
+header{gap:8px;padding-bottom:8px}
+.chip{padding:6px 12px}
+#add input{padding:10px 12px}
+main{gap:12px;padding-top:10px}
+.groups{gap:10px}
+.group{gap:3px}
+.ghead h3,.ghead .gn{font-size:.72rem}
+.item{gap:8px;padding:2px 2px 2px 8px;min-height:40px}
+.grip{width:22px;height:34px;margin-left:-4px}
+.check{width:26px;height:26px}
+.check svg{width:14px;height:14px}
+.x{width:34px;height:34px}
+.txt{font-size:1rem;line-height:1.25}
+.item input.edit{padding:5px 8px;margin:-4px 0}
+.listhead h2{font-size:1.15rem}
+.listhead .ghost{padding:4px 10px}
+.who{width:22px;height:22px;font-size:.68rem}
+.hint[hidden]{display:none}
 
 #lock{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .lockbox{width:100%;max-width:340px;display:grid;gap:14px;justify-items:center;text-align:center}
@@ -512,6 +532,7 @@ function render(){
     ?'Geef per item aan of het al in huis is of nog gekocht moet worden. Tik op een naam om die te wijzigen, sleep aan de puntjes om te verplaatsen.'
     :(isGrouped(l)?'Komma\'s voor meerdere tegelijk. Nieuwe producten worden bij het volgende openen op AH-looproute ingedeeld. Tik op een naam om die te wijzigen. Sleep aan de puntjes om iets naar een andere plek of afdeling te verplaatsen.'
                   :'Meerdere tegelijk met komma\'s. Tik op een naam om die te wijzigen, sleep aan de puntjes om de volgorde aan te passen.');
+  $('hint').hidden=itemsOf(l.id).length>0; // uitleg alleen bij een lege lijst, dan passen er meer boodschappen op het scherm
   if(trip) renderTrip(l); else renderShop(l);
 }
 
