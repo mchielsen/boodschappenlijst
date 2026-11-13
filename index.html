@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="app-version" content="08-11 01:37">
+<meta name="app-version" content="14-11 00:32">
 <style>
 /* Eén smalle kolom zoals een boodschappenbriefje; vaste kop met lijst-tabs, invoer bovenaan.
    Supermarkt: groepen in AH-looproute. Vakantielijst: nalopen → kopen → inpakken → ingepakt. */
@@ -501,7 +501,7 @@ function isGrouped(l){
   return l.id==='supermarkt'||/supermarkt|albert heijn|(^|\s)ah(\s|$)/i.test(l.name);
 }
 function openCount(l){const its=itemsOf(l.id).filter(i=>!isLater(i));return kindOf(l)==='trip'?its.filter(i=>i.status!=='packed').length:its.filter(i=>!i.done).length}
-function isFresh(i){return !UI.placed.has(i.id)&&(UI.addedHere.has(i.id)||(i.createdAt||0)>UI.openedAt)}
+function isFresh(i){return false} // nieuwe boodschappen gaan meteen naar hun afdeling
 
 function render(){
   if(UI.dragging||UI.editing){UI.renderPending=true;return}
@@ -530,7 +530,7 @@ function render(){
   $('itemText').placeholder=trip?'Wat moet er mee op vakantie?':'Wat moet er mee?';
   $('hint').textContent=trip
     ?'Geef per item aan of het al in huis is of nog gekocht moet worden. Tik op een naam om die te wijzigen, sleep aan de puntjes om te verplaatsen.'
-    :(isGrouped(l)?'Komma\'s voor meerdere tegelijk. Nieuwe producten worden bij het volgende openen op AH-looproute ingedeeld. Tik op een naam om die te wijzigen. Sleep aan de puntjes om iets naar een andere plek of afdeling te verplaatsen.'
+    :(isGrouped(l)?'Komma\'s voor meerdere tegelijk. Nieuwe producten komen meteen bij de goede afdeling. Tik op een naam om die te wijzigen. Sleep aan de puntjes om iets naar een andere plek of afdeling te verplaatsen.'
                   :'Meerdere tegelijk met komma\'s. Tik op een naam om die te wijzigen, sleep aan de puntjes om de volgorde aan te passen.');
   $('hint').hidden=itemsOf(l.id).length>0; // uitleg alleen bij een lege lijst, dan passen er meer boodschappen op het scherm
   if(trip) renderTrip(l); else renderShop(l);
@@ -710,6 +710,20 @@ function addItems(raw){
   if(already.length) msg.push(names(already)+(already.length===1?' staat':' staan')+' al op de lijst');
   if(back.length) msg.push(names(back)+(back.length===1?' lag':' lagen')+' al in de kar en '+(back.length===1?'staat':'staan')+' weer op de lijst');
   if(dated.length&&!msg.length) toast(dated.length===1?'"'+dated[0].text+'" staat onder Later kopen, vanaf '+fmtDate(dated[0].from)+'.':dated.length+' producten staan onder Later kopen.');
+  // Nieuw toegevoegd: even laten oplichten op de plek in de looproute; buiten beeld → melden waar het staat
+  const addedOps=ops.filter(o=>o.type==='addItem'&&!o.from);
+  if(addedOps.length) requestAnimationFrame(()=>{
+    const off=[];
+    addedOps.forEach(o=>{
+      const li=document.querySelector('li.item[data-id="'+CSS.escape(o.id)+'"]'); if(!li) return;
+      li.classList.remove('flash');void li.offsetWidth;li.classList.add('flash');
+      const r=li.getBoundingClientRect(); if(r.top>innerHeight||r.bottom<0) off.push(o);
+    });
+    if(off.length&&!msg.length&&!dated.length&&isGrouped(l)){
+      const sec=o=>CAT_NAME[catOf(view.items[o.id]||o)]||'Overig';
+      toast(off.length===1?'"'+off[0].text+'" staat bij '+sec(off[0])+'.':off.length+' producten toegevoegd, elk bij hun afdeling.');
+    }
+  });
   if(msg.length){
     const added=ops.filter(o=>o.type==='addItem').length;
     toast(msg.join('. ')+(added?'. De rest is toegevoegd.':'.'));
