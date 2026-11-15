@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="app-version" content="15-11 19:39">
+<meta name="app-version" content="15-11 19:42">
 <style>
 /* Eén smalle kolom zoals een boodschappenbriefje; vaste kop met lijst-tabs, invoer bovenaan.
    Supermarkt: groepen in AH-looproute. Vakantielijst: nalopen → kopen → inpakken → ingepakt. */
@@ -1183,8 +1183,8 @@ function renderMenu(){
   const ds=weekDates(UI.week), today=todayStr(), all=meals();
   const a=ds[0], b=ds[6];
   const range=a.getMonth()===b.getMonth()?a.getDate()+'–'+b.getDate()+' '+MSHORT[b.getMonth()]:a.getDate()+' '+MSHORT[a.getMonth()]+' – '+b.getDate()+' '+MSHORT[b.getMonth()];
-  const label=UI.week===0?'Deze week':UI.week===1?'Volgende week':UI.week===-1?'Vorige week':'Week '+weekNo(a);
-  let h='<div class="listhead"><h2>Weekmenu<span class="sub">'+esc(label)+' · week '+weekNo(a)+' · '+range+'</span></h2>'
+  const rel=UI.week===0?'Deze week · ':UI.week===1?'Volgende week · ':UI.week===-1?'Vorige week · ':'';
+  let h='<div class="listhead"><h2>Weekmenu<span class="sub">'+rel+'Week '+weekNo(a)+' · '+range+'</span></h2>'
     +'<div class="weeknav"><button class="ghost" type="button" data-mact="prev" aria-label="Vorige week">‹</button>'
     +(UI.week?'<button class="ghost" type="button" data-mact="now">Nu</button>':'')
     +'<button class="ghost" type="button" data-mact="next" aria-label="Volgende week">›</button></div></div>';
@@ -1212,7 +1212,7 @@ function renderMenu(){
   h+='</div>';
   const t=menuTarget(), n=toSend().length;
   h+='<div class="menusend">'+(t
-    ?'<div class="row"><button class="btn" type="button" data-mact="send"'+(n?'':' disabled')+'>'+(n?'Zet '+n+(n===1?' boodschap':' boodschappen')+' op':'Alles staat al op')+'</button>'
+    ?'<div class="row"><button class="btn" type="button" data-mact="send"'+(n?'':' disabled')+'>'+(n?'Zet '+n+(n===1?' boodschap':' boodschappen')+' op':(planned?'Alles staat al op':'Nog niets gepland'))+'</button>'
      +'<select id="menuTarget" aria-label="Op welke lijst">'+shopLists().map(l=>'<option value="'+esc(l.id)+'"'+(l.id===t.id?' selected':'')+'>'+esc(l.name)+'</option>').join('')+'</select></div>'
     :'<p class="hint">Maak eerst een boodschappenlijst om ingrediënten op te zetten.</p>')+'</div>';
   mv.innerHTML=h;
