@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="app-version" content="15-11 19:42">
+<meta name="app-version" content="15-11 19:51">
 <style>
 /* Eén smalle kolom zoals een boodschappenbriefje; vaste kop met lijst-tabs, invoer bovenaan.
    Supermarkt: groepen in AH-looproute. Vakantielijst: nalopen → kopen → inpakken → ingepakt. */
@@ -272,6 +272,32 @@ main{gap:12px;padding-top:10px}
 .menusend .btn[disabled]{opacity:.5}
 .menusend select{width:auto;flex:0 1 140px;min-width:0}
 .menusend .hint{margin:0}
+.ideas{display:grid;gap:6px;margin-top:6px}
+.idealist{background:var(--card);border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.idea{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 2px 4px 12px;border-top:1px solid var(--line);min-height:42px}
+.idea:first-child{border-top:0}
+.ideamain{flex:1;min-width:0;display:grid;gap:1px;justify-items:start}
+.ideamain .txt{font-size:.98rem;width:100%}
+.idealink{font-size:.78rem;color:var(--sky);text-decoration:none;font-weight:600;overflow-wrap:anywhere}
+.idea .pill{padding:4px 9px;font-size:.75rem}
+.idea .pill[aria-expanded="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.idea .x{width:32px;height:32px}
+.idea input.edit{flex:1;min-width:0;font:inherit;color:var(--ink);background:var(--paper);border:1px solid var(--accent);border-radius:8px;padding:5px 8px}
+.plandays{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;padding:2px 10px 6px 0}
+.plandays .pill{background:var(--accent-soft);border-color:transparent}
+.plandays .pill[disabled]{opacity:.4;text-decoration:line-through}
+.top h1{white-space:nowrap;font-size:clamp(1.25rem,6.4vw,1.65rem)}
+.top .status{min-width:0;flex:0 1 auto;overflow:hidden}
+.top .status #statusText{overflow:hidden;text-overflow:ellipsis}
+.idealink.only{font-size:.98rem;padding:4px 0}
+.top{min-width:0}
+.top h1{flex:0 0 auto}
+.top .status{flex:0 1 auto}
+#menuView .listhead{flex-wrap:wrap;row-gap:6px}
+#menuView .listhead h2{flex:1 1 200px}
+.menusend .btn{min-width:0;overflow:hidden;text-overflow:ellipsis}
+main>*,#menuView>*,.stack>*{min-width:0}
+.menusend .row{flex-wrap:wrap}.menusend .btn{flex:1 1 190px}.menusend select{flex:1 1 110px}
 
 #lock{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .lockbox{width:100%;max-width:340px;display:grid;gap:14px;justify-items:center;text-align:center}
@@ -451,7 +477,7 @@ const CATS = [
  ['zuivel','Zuivel, eieren','griekse yoghurt cottage cheese halfvolle melk creme fraiche zeeuws meisje volle melk blue band zure room zuivel melk karnemelk yoghurt kwark vla room slagroom kookroom boter roomboter kruidenboter knoflookboter margarine halvarine eieren eitjes ei havermelk sojamelk amandelmelk skyr toetje pudding chocomel fristi drinkyoghurt mascarpone ricotta roomkaas smeerboter campina optimel vifit arla danone alpro becel activia almhof yakult melkunie kerrygold kokosmelk proteinepudding kefir probiotica lactosevrij lactosevrije griesmeelpap rijstepap havermoutpap chocoladevla vanillevla yoghurtdrank koffieroom bakroom boerenyoghurt kwarktaart'],
  ['ontbijt','Ontbijtgranen, beleg','de ruijter pindakaas jam hagelslag vlokken chocoladepasta nutella honing appelstroop stroop muesli cruesli granola cornflakes havermout ontbijtgranen beschuit crackers knackebrod ontbijtkoek sandwichspread peijnenburg brinta quaker venz wasa ontbijtcups chiazaad lijnzaad zonnebloempitten pompoenpitten zaden pitten notenpasta leverpastei smeerworst vruchtenhagel muisjes gestampte muisjes chocoladehagel kokosbrood ontbijtdrank sesamzaad maanzaad'],
  ['pasta','Pasta, rijst, wereldkeuken','gebakken uitjes old el paso pasta spaghetti macaroni penne fusilli tagliatelle farfalle lasagne lasagnebladen noedels mie rijst basmati zilvervliesrijst couscous bulgur quinoa wraps tortilla tortillas taco tacos sambal ketjap sojasaus woksaus currypasta nasi bami pastasaus conimex lassie rijstpapier sushirijst wokolie sesamolie oestersaus teriyaki kerrie roti tacoschelpen burrito enchilada fajita pizzasaus lasagnesaus risottorijst risotto orzo ramen udon miso tacokruiden fajitakruiden rendangkruiden nasikruiden bamikruiden atjar seroendeng'],
- ['conserven','Soepen, sauzen, kruiden, olie','bruine bonen witte bonen soep bouillon bouillonblokjes saus mayonaise mayo ketchup mosterd fritessaus frietsaus olijfolie olie zonnebloemolie bakolie frituurvet azijn peper zout kruidenmix oregano paprikapoeder kaneel pesto tomatenpuree passata tomatenblokjes bonen kidneybonen kikkererwten linzen mais appelmoes augurken olijven tonijn knakworstjes knakworst knakworsten knaks frankfurter frankfurters limco zwan paneermeel remia heinz zwanenberg specerijen kruidenpot nootmuskaat kurkuma komijn chilivlokken cayennepeper knoflookpoeder uienpoeder laurier balsamico frituurolie arachideolie koolzaadolie maisolie vleesjus satesaus pindasaus currysaus barbecuesaus knoflooksaus cocktailsaus mosterdsaus hollandaise bearnaise sardines ansjovis doperwten bouillonpoeder fond vermicelli spliterwten croutons caesardressing dressing zilveruitjes soepballetjes'],
+ ['conserven','Soepen, sauzen, kruiden, olie','marinade marinades kipmarinade kipkruiden bruine bonen witte bonen soep bouillon bouillonblokjes saus mayonaise mayo ketchup mosterd fritessaus frietsaus olijfolie olie zonnebloemolie bakolie frituurvet azijn peper zout kruidenmix oregano paprikapoeder kaneel pesto tomatenpuree passata tomatenblokjes bonen kidneybonen kikkererwten linzen mais appelmoes augurken olijven tonijn knakworstjes knakworst knakworsten knaks frankfurter frankfurters limco zwan paneermeel remia heinz zwanenberg specerijen kruidenpot nootmuskaat kurkuma komijn chilivlokken cayennepeper knoflookpoeder uienpoeder laurier balsamico frituurolie arachideolie koolzaadolie maisolie vleesjus satesaus pindasaus currysaus barbecuesaus knoflooksaus cocktailsaus mosterdsaus hollandaise bearnaise sardines ansjovis doperwten bouillonpoeder fond vermicelli spliterwten croutons caesardressing dressing zilveruitjes soepballetjes'],
  ['snoep','Koek, snoep, chocolade','red band koek koekjes biscuit biscuitjes stroopwafels speculaas chocolade chocola reep repen snoep drop winegums kauwgom evergreen liga haribo katja venco autodrop mentos stimorol milka droste verkade chocolonely tony tonys kitkat twix snickers bounty mars oreo sultana pepernoten kruidnoten chocoladeletter chocoladeletters marsepein speculaasjes pepermunt keelpastilles chocolaatjes bonbons zuurtjes lolly lollys schuimpjes kerstkransjes paaseitjes chocoladereep chocoladerepen'],
  ['chips','Borrel, chips, snacks','lay s chips nootjes pinda pindas cashewnoten noten borrelnoten popcorn zoutjes kroepoek tortillachips nachos borrelhapjes pringles doritos croky duyvis smiths cheetos tapenade droge worst borrelnootjes dip dips salsa guacamole tzatziki borrelplank kaasstengels zoute stengels pretzels toast toastjes'],
  ['tussendoor','Tussendoortjes','tussendoortje tussendoortjes mueslireep mueslirepen rijstwafels notenreep fruitreep proteinereep fruitbiscuit melkbiscuit haverreep proteinerepen maiswafels linzenwafels knijpzakje'],
@@ -1055,6 +1081,7 @@ const RECIPES=[
  [['macaroni'],'Macaroni, Rundergehakt, Ui, Paprika, Tomatenblokjes, Ham, Geraspte kaas'],
  [['mac and cheese','mac n cheese','mac & cheese'],'Macaroni, Cheddar, Melk, Roomboter, Bloem'],
  [['pasta pesto','pesto'],'Penne, Pesto, Kipfilet, Cherrytomaten, Rucola, Pijnboompitten, Parmezaanse kaas'],
+ [['aglio e olio','aglio olio'],'Spaghetti, Knoflook, Chilipeper, Peterselie, Parmezaanse kaas'],
  [['carbonara','pasta carbonara'],'Spaghetti, Spekjes, Eieren, Parmezaanse kaas, Knoflook'],
  [['pasta zalm','zalmpasta','pasta met zalm'],'Penne, Gerookte zalm, Kookroom, Spinazie, Citroen'],
  [['tortellini'],'Tortellini, Pastasaus, Parmezaanse kaas, Rucola'],
@@ -1074,10 +1101,10 @@ const RECIPES=[
  [['teriyaki'],'Kipfilet, Teriyakisaus, Rijst, Broccoli, Sesamzaad'],
  [['poke bowl','pokebowl','sushi bowl','sushi'],'Sushirijst, Zalm, Avocado, Komkommer, Edamame, Sojasaus, Sesamzaad'],
  [['stamppot boerenkool','boerenkool stamppot','boerenkool'],'Boerenkool, Aardappelen, Rookworst, Spekjes, Melk, Roomboter, Mosterd'],
- [['hutspot'],'Aardappelen, Winterpeen, Uien, Rookworst, Melk, Roomboter'],
+ [['hutspot','peenstamp','wortelstamp','wortelstamppot','peenstamppot'],'Aardappelen, Winterpeen, Uien, Rookworst, Melk, Roomboter'],
  [['zuurkool','stamppot zuurkool','zuurkoolstamppot'],'Zuurkool, Aardappelen, Rookworst, Spekjes, Melk, Roomboter'],
  [['andijvie','andijviestamppot','stamppot andijvie','rauwe andijvie'],'Andijvie, Aardappelen, Spekjes, Melk, Roomboter'],
- [['stamppot'],'Aardappelen, Rookworst, Melk, Roomboter'],
+ [['stamppot','stamp'],'Aardappelen, Rookworst, Melk, Roomboter'],
  [['erwtensoep','snert'],'Spliterwten, Rookworst, Knolselderij, Prei, Wortel, Ui, Aardappelen, Spekjes, Roggebrood'],
  [['tomatensoep'],'Tomaten, Ui, Knoflook, Bouillonblokjes, Kookroom, Soepballetjes, Stokbrood'],
  [['kippensoep'],'Soepkip, Soepgroente, Soepballetjes, Vermicelli, Bouillonblokjes'],
@@ -1093,6 +1120,7 @@ const RECIPES=[
  [['friet','patat','frietjes','frieten','snacks'],'Friet, Frikandellen, Kroketten, Mayonaise, Appelmoes'],
  [['kapsalon'],'Shoarmavlees, Friet, Goudse kaas, IJsbergsla, Tomaten, Komkommer, Knoflooksaus, Sambal'],
  [['shoarma','shoarmabroodje'],'Shoarmavlees, Pitabroodjes, Knoflooksaus, IJsbergsla, Tomaten, Komkommer, Rode ui'],
+ [['broodje gyros','broodje shoarma'],'Gyros, Pitabroodjes, Tzatziki, IJsbergsla, Tomaten, Komkommer, Rode ui'],
  [['gyros'],'Gyros, Pitabroodjes, Tzatziki, Tomaten, Komkommer, Rode ui, Rijst'],
  [['falafel'],'Falafel, Pitabroodjes, Hummus, Tomaten, Komkommer, IJsbergsla'],
  [['pannenkoeken','pannenkoek'],'Pannenkoekenmix, Melk, Eieren, Stroop, Poedersuiker, Spekjes'],
@@ -1132,7 +1160,7 @@ const RECIPES=[
 const RECIPE_IDX=[]; RECIPES.forEach(([names,ings])=>names.forEach(n=>RECIPE_IDX.push({n:norm(n),ings:ings.split(', ')})));
 RECIPE_IDX.sort((a,b)=>b.n.length-a.n.length);
 
-const MENU_STOP=new Set('met zonder en van uit voor verse vers zelfgemaakte huisgemaakte lekkere snelle simpele oven gebakken gegrilde gestoofde saus'.split(' '));
+const MENU_STOP=new Set('met zonder en van uit voor verse vers zelfgemaakte huisgemaakte lekkere snelle simpele oven gebakken gegrilde gestoofde gestoomde gemarineerde gemarineerd zelf saus broodje'.split(' '));
 function meals(){return (view&&view.meals)||{}}
 function recipeKey(dish){return itemKey(dish)}
 function sameIng(a,b){a=itemKey(a);b=itemKey(b);return a===b||(a.length>=4&&b.length>=4&&(a.startsWith(b)||b.startsWith(a)))}
@@ -1177,7 +1205,8 @@ function renderMenu(){
   // Niet verversen terwijl je aan het typen bent; dat gebeurt zodra je klaar bent
   const ae=document.activeElement; let refocus=null;
   if(mv.contains(ae)&&ae.matches('input')){
-    if(ae.matches('.ingin')&&!ae.value) refocus=ae.closest('.day')?.dataset.date; // net iets toegevoegd: daarna verder typen
+    if(ae.matches('.ingin')&&!ae.value) refocus='.day[data-date="'+ae.closest('.day')?.dataset.date+'"] .ingin'; // net iets toegevoegd: daarna verder typen
+    else if(ae.matches('.ideain')&&!ae.value) refocus='.ideain';
     else {UI.renderPending=true;return}
   }
   const ds=weekDates(UI.week), today=todayStr(), all=meals();
@@ -1210,13 +1239,14 @@ function renderMenu(){
     h+='</section>';
   });
   h+='</div>';
+  h+=ideasHtml(ds);
   const t=menuTarget(), n=toSend().length;
   h+='<div class="menusend">'+(t
     ?'<div class="row"><button class="btn" type="button" data-mact="send"'+(n?'':' disabled')+'>'+(n?'Zet '+n+(n===1?' boodschap':' boodschappen')+' op':(planned?'Alles staat al op':'Nog niets gepland'))+'</button>'
      +'<select id="menuTarget" aria-label="Op welke lijst">'+shopLists().map(l=>'<option value="'+esc(l.id)+'"'+(l.id===t.id?' selected':'')+'>'+esc(l.name)+'</option>').join('')+'</select></div>'
     :'<p class="hint">Maak eerst een boodschappenlijst om ingrediënten op te zetten.</p>')+'</div>';
   mv.innerHTML=h;
-  if(refocus){const el=mv.querySelector('.day[data-date="'+refocus+'"] .ingin'); if(el) el.focus({preventScroll:true})}
+  if(refocus){const el=mv.querySelector(refocus); if(el) el.focus({preventScroll:true})}
   // suggesties voor gerechten: jullie eigen gerechten en de bekende
   const names=new Set();
   Object.values(all).forEach(m=>m&&m.dish&&names.add(m.dish));
@@ -1267,6 +1297,7 @@ function sendMenu(){
 
 $('menuView').addEventListener('submit',e=>{
   e.preventDefault();
+  if(e.target.matches('.ideaform')){addIdea(e.target.querySelector('input'));return}
   const day=e.target.closest('.day'); if(!day) return; const date=day.dataset.date;
   if(e.target.matches('.dishform')){const v=e.target.querySelector('input').value; e.target.querySelector('input').blur(); setDish(date,v); return}
   if(e.target.matches('.ingform')){
@@ -1281,6 +1312,7 @@ $('menuView').addEventListener('click',e=>{
   const a=b.dataset.mact;
   if(a==='prev'||a==='next'||a==='now'){UI.week=a==='now'?0:UI.week+(a==='next'?1:-1);render();return}
   if(a==='send'){sendMenu();return}
+  if(ideaClick(a,b)) return;
   const day=b.closest('.day'); if(!day) return; const date=day.dataset.date; const m=mealOf(date); if(!m) return;
   const li=b.closest('.ing'), g=li&&m.ings.find(x=>x.id===li.dataset.ing);
   if(a==='dish'){inlineEdit(b,m.dish,v=>setDish(date,v));return}
@@ -1294,6 +1326,54 @@ $('menuView').addEventListener('change',e=>{if(e.target.id==='menuTarget'){UI.ta
 $('menuView').addEventListener('focusout',()=>setTimeout(()=>{
   if(UI.renderPending&&!$('menuView').contains(document.activeElement)) render();
 },60));
+
+/* ---------- Eetideeën en links naar recepten ---------- */
+UI.planIdea=null;
+function ideas(){return Object.values((view&&view.ideas)||{}).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)||String(a.id).localeCompare(String(b.id)))}
+function cleanUrl(u){
+  try{const x=new URL(u); [...x.searchParams.keys()].forEach(k=>{if(/^(utm_|gclid|gad_|fbclid|tm(src|cid|sid|id|kw))/i.test(k)) x.searchParams.delete(k)});
+    let r=x.toString(); if(!x.search) r=r.replace(/\?$/,''); return r}catch(e){return u}
+}
+function hostOf(u){try{return new URL(u).hostname.replace(/^www\./,'')}catch(e){return u}}
+function splitIdea(raw){
+  const m=raw.match(/https?:\/\/\S+/i); const url=m?cleanUrl(m[0].replace(/[),.]+$/,'')):'';
+  let text=(m?raw.replace(m[0],''):raw).replace(/\s+/g,' ').replace(/^[-–•\s]+|[-–:\s]+$/g,'').trim();
+  return {text:text?cap(text):'',url};
+}
+function ideasHtml(ds){
+  const list=ideas();
+  let h='<section class="ideas"><div class="ghead"><h3>Eetideeën &amp; recepten</h3><span class="gn">'+(list.length||'')+'</span></div>'
+    +'<form class="ideaform"><input type="text" class="ideain" placeholder="Idee of link naar een recept" maxlength="500" enterkeyhint="done" autocomplete="off" aria-label="Eetidee of link toevoegen"></form>';
+  if(list.length) h+='<ul class="idealist">'+list.map(it=>{
+    const title=it.text||hostOf(it.url);
+    const link=c=>'<a class="idealink'+c+'" href="'+esc(it.url)+'" target="_blank" rel="noopener noreferrer">'+esc(hostOf(it.url))+' ↗</a>';
+    let r='<li class="idea" data-idea="'+esc(it.id)+'"><div class="ideamain">'
+      +(it.text?'<button class="txt" type="button" data-mact="idea">'+esc(title)+'</button>'+(it.url?link(''):''):link(' only'))+'</div>'
+      +(it.text?'<button class="pill" type="button" data-mact="plan" aria-expanded="'+(UI.planIdea===it.id)+'">Inplannen</button>':'')
+      +'<button class="x" type="button" data-mact="delidea" aria-label="Weghalen: '+esc(title)+'">'+XSVG+'</button>';
+    if(UI.planIdea===it.id) r+='<div class="plandays">'+ds.map((d,i)=>{const iso=isoOf(d), m=meals()[iso];
+      return '<button class="pill" type="button" data-mact="plando" data-date="'+iso+'"'+(m?' disabled title="'+esc(m.dish)+'"':'')+'>'+DAYS[i].slice(0,2)+' '+d.getDate()+'</button>'}).join('')+'</div>';
+    return r+'</li>';
+  }).join('')+'</ul>';
+  else h+='<p class="noings">Zet hier gerechten die jullie nog eens willen maken, of plak een link naar een recept.</p>';
+  return h+'</section>';
+}
+function addIdea(inp){
+  const raw=inp.value.trim(); if(!raw) return; inp.value='';
+  const {text,url}=splitIdea(raw); if(!text&&!url) return;
+  const dup=ideas().find(i=>(text&&i.text&&itemKey(i.text)===itemKey(text))||(url&&i.url===url));
+  if(dup){toast('"'+(dup.text||hostOf(dup.url))+'" staat al bij de eetideeën.');return}
+  queue([{type:'addIdea',id:newId(),text,url,by:byValue()}]);
+}
+function ideaClick(a,b){
+  const li=b.closest('.idea'); if(!li) return false;
+  const it=view.ideas&&view.ideas[li.dataset.idea]; if(!it) return true;
+  if(a==='delidea'){queue([{type:'delIdea',id:it.id}]);toast('"'+(it.text||hostOf(it.url))+'" weggehaald');return true}
+  if(a==='plan'){UI.planIdea=UI.planIdea===it.id?null:it.id;render();return true}
+  if(a==='plando'){UI.planIdea=null;setDish(b.dataset.date,it.text);toast('"'+it.text+'" staat op '+DAYS[(new Date(b.dataset.date+'T12:00').getDay()+6)%7].toLowerCase()+'.');return true}
+  if(a==='idea'){inlineEdit(b,it.text||'',v=>{const p=splitIdea(v); queue([{type:'editIdea',id:it.id,text:p.text||it.text,url:p.url||it.url}])});return true}
+  return true;
+}
 
 /* Zelfde regels als api.php, zodat het scherm direct klopt, ook offline */
 function applyOp(s, op){
@@ -1339,6 +1419,9 @@ function applyOp(s, op){
     case 'deleteItem': delete s.items[op.id]; break;
     case 'setMeal': s.meals=s.meals||{}; if(op.date){ if(op.meal) s.meals[op.date]=op.meal; else delete s.meals[op.date] } break;
     case 'setRecipe': s.recipes=s.recipes||{}; if(op.key){ if(op.ings&&op.ings.length) s.recipes[op.key]=op.ings; else delete s.recipes[op.key] } break;
+    case 'addIdea': s.ideas=s.ideas||{}; if(op.id&&!s.ideas[op.id]) s.ideas[op.id]={id:op.id,text:op.text||'',url:op.url||'',by:op.by||'',createdAt:now}; break;
+    case 'editIdea': if(s.ideas&&s.ideas[op.id]){s.ideas[op.id].text=op.text||'';s.ideas[op.id].url=op.url||''} break;
+    case 'delIdea': if(s.ideas) delete s.ideas[op.id]; break;
     case 'clearDone': for(const k in s.items){const x=s.items[k];if(x.listId===op.listId&&x.done) delete s.items[k]} break;
   }
 }
@@ -1651,6 +1734,7 @@ function fixState(s){
   if(!s.users||Array.isArray(s.users)) s.users={};
   if(!s.meals||Array.isArray(s.meals)) s.meals={};
   if(!s.recipes||Array.isArray(s.recipes)) s.recipes={};
+  if(!s.ideas||Array.isArray(s.ideas)) s.ideas={};
   s.version=+s.version||0; return s;
 }
 function persist(){
