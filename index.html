@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="app-version" content="15-11 19:56">
+<meta name="app-version" content="15-11 20:01">
 <style>
 /* Eén smalle kolom zoals een boodschappenbriefje; vaste kop met lijst-tabs, invoer bovenaan.
    Supermarkt: groepen in AH-looproute. Vakantielijst: nalopen → kopen → inpakken → ingepakt. */
@@ -303,6 +303,16 @@ main>*,#menuView>*,.stack>*{min-width:0}
 .fold[aria-expanded="false"] svg{transform:rotate(-90deg)}
 .foldsum{justify-self:start;background:none;border:0;padding:0 0 2px 24px;font-size:.82rem;color:var(--muted);text-align:left}
 @media (prefers-reduced-motion: reduce){.fold svg{transition:none}}
+#setup{width:100%;max-width:420px;display:grid;gap:14px}
+#setup h1{font-size:1.7rem}
+.steps{margin:0;padding:0;list-style:none;counter-reset:st;display:grid;gap:12px}
+.steps li{counter-increment:st;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px 12px 12px 48px;position:relative;display:grid;gap:6px}
+.steps li::before{content:counter(st);position:absolute;left:12px;top:12px;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:.85rem;display:grid;place-items:center}
+.steps li span{color:var(--muted);font-size:.9rem}
+.steps .btn{justify-self:start;text-decoration:none;padding:9px 14px;font-size:.92rem}
+#setup .small{font-size:.85rem}
+.newhere{text-align:center;font-size:.9rem}
+.newhere .linkbtn{color:var(--accent);font-weight:600;font-size:.9rem}
 
 #lock{min-height:100vh;min-height:100dvh;display:grid;place-items:center;padding:calc(24px + env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) calc(24px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
 .lockbox{width:100%;max-width:340px;display:grid;gap:14px;justify-items:center;text-align:center}
@@ -337,7 +347,24 @@ main>*,#menuView>*,.stack>*{min-width:0}
       <span>Beveilig met vingerafdruk<small>Bij elke keer openen ontgrendel je de app met je vingerafdruk of gezichtsherkenning.</small></span></label>
     <div class="err" id="loginErr" role="alert"></div>
     <button class="btn" type="submit" id="loginBtn">Openen</button>
+    <p class="newhere">Nog geen eigen lijst? <button class="linkbtn" type="button" id="setupBtn">Eigen lijst beginnen</button></p>
   </form>
+
+  <div id="setup" hidden>
+    <h1>Eigen lijst beginnen</h1>
+    <p>Je lijsten en weekmenu worden bewaard in je eigen, gratis GitHub-account. Alleen jij (en wie jij de sleutel geeft) kan erbij. Het instellen duurt een paar minuten en hoeft maar één keer.</p>
+    <ol class="steps">
+      <li><b>Maak een gratis GitHub-account</b><span>Heb je er al een? Dan sla je deze stap over.</span>
+        <a class="btn sec" href="https://github.com/signup" target="_blank" rel="noopener">Account maken</a></li>
+      <li><b>Maak je opslag aan</b><span>Naam en "Private" staan al ingevuld. Tik onderaan op <i>Create repository</i>.</span>
+        <a class="btn sec" href="https://github.com/new?name=eten-en-boodschappen-data&amp;visibility=private&amp;description=Lijsten+en+weekmenu+voor+de+app+Eten+%26+boodschappen" target="_blank" rel="noopener">Opslag aanmaken</a></li>
+      <li><b>Maak je sleutel</b><span>Alles staat al ingevuld. Kies alleen bij <i>Repository access</i> voor <i>Only select repositories</i> en dan <i>eten-en-boodschappen-data</i>. Tik op <i>Generate token</i> en kopieer de sleutel (begint met github_pat_).</span>
+        <a class="btn sec" href="https://github.com/settings/personal-access-tokens/new?name=Eten+%26+boodschappen&amp;description=Sleutel+voor+de+app+Eten+%26+boodschappen&amp;expires_in=none&amp;contents=write" target="_blank" rel="noopener">Sleutel maken</a></li>
+      <li><b>Kom terug en log in</b><span>Vul je naam in en plak de sleutel. De app vindt je opslag zelf en maakt je lijsten aan.</span>
+        <button class="btn" type="button" id="setupDone">Naar inloggen</button></li>
+    </ol>
+    <p class="small">Samen met je partner? Geef die dezelfde sleutel; dan delen jullie dezelfde lijsten. Bewaar de sleutel goed, bijvoorbeeld in je wachtwoordbeheerder.</p>
+  </div>
 </section>
 
 <section id="lock" hidden>
@@ -445,7 +472,7 @@ main>*,#menuView>*,.stack>*{min-width:0}
 
     <footer>
       <span id="whoami"></span>
-      <span class="footbtns"><button type="button" id="installBtn">Op beginscherm zetten</button><button type="button" id="lockToggle" hidden>Vingerafdruk instellen</button><button type="button" id="logout">Afmelden</button></span>
+      <span class="footbtns"><button type="button" id="shareBtn">App delen</button><button type="button" id="installBtn">Op beginscherm zetten</button><button type="button" id="lockToggle" hidden>Vingerafdruk instellen</button><button type="button" id="logout">Afmelden</button></span>
     </footer>
   </main>
 </div>
@@ -1077,8 +1104,8 @@ document.addEventListener('visibilitychange',()=>{
    en recipes[gerecht] = [ingrediënten] (onthouden zodra je een voorstel aanpast). */
 const MENU_ID='__menu';
 const FORK='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5v4.2a1.6 1.6 0 0 0 3.2 0V1.5M5.6 1.5v13"/><path d="M11.5 14.5V1.5c-1.6.9-2.4 2.8-2.4 5.2 0 1.4.9 2.3 2.4 2.3"/></svg>';
-// Vast ritme per weekdag, als hint in het lege vakje (ma = 0). Jullie eigen hints in de data gaan voor.
-const DAY_HINTS=['soep','biefstuk','vis','gehakt','broodjes','',''];
+// Vast ritme per weekdag als hint in het lege vakje (ma = 0); staat per huishouden in de data (dayHints)
+const DAY_HINTS=['','','','','','',''];
 function dayHint(i){const h=view&&view.dayHints; return (h&&typeof h[i]==='string')?h[i]:DAY_HINTS[i]}
 // Ingeklapte gerechten (per telefoon onthouden)
 const CHEV='<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5l3.5 3.5 3.5-3.5"/></svg>';
@@ -1716,6 +1743,17 @@ function offerInstall(){
 $('installBtn').addEventListener('click',doInstall);
 updateInstallBtn();
 
+/* App delen met iemand die een eigen lijst wil: de link opent meteen de uitleg "Eigen lijst beginnen" */
+(function(){
+  const b=document.getElementById('shareBtn'); if(!b) return;
+  b.addEventListener('click',async()=>{
+    const url=location.origin+location.pathname+'?nieuw';
+    const text='Hoi! Met deze app houd je je eigen weekmenu en boodschappenlijst bij, ingedeeld op de AH-looproute. Open de link, tik op "Eigen lijst beginnen" en volg de stappen. Je lijsten zijn alleen van jou.';
+    try{ if(navigator.share){await navigator.share({title:'Eten & boodschappen',text,url});return} }catch(e){ if(e&&e.name==='AbortError') return }
+    try{await navigator.clipboard.writeText(text+'\n'+url);toast('Link gekopieerd. Plak hem in een bericht.')}catch(e){toast('Deel deze link: '+url)}
+  });
+})();
+
 /* ===== Opslaglaag: privé GitHub-repository =====
    De app staat op GitHub Pages; jullie lijsten staan als één bestand (data.json) in een
    privé-repository. Elke telefoon logt één keer in met de gezamenlijke sleutel (een
@@ -1724,7 +1762,8 @@ updateInstallBtn();
    pending = wijzigingen die nog niet zijn opgeslagen (blijven bewaard als je offline bent)
    view    = server + pending, dat zie je op het scherm */
 const GH_API = 'https://api.github.com';
-const DATA_REPO = 'mchielsen/boodschappenlijst-data';
+const DEFAULT_REPO = 'mchielsen/boodschappenlijst-data';
+let DATA_REPO = lsGet('bs-repo') || DEFAULT_REPO; // eigen opslag per huishouden
 const DATA_FILE = 'data.json';
 const K = {token:'bs-gh-token', name:'bs-name', server:'bs-server', pending:'bs-pending'};
 let token = lsGet(K.token);
@@ -1797,11 +1836,23 @@ async function gh(method, body, useToken, extra){
 }
 // Controleert of de sleutel toegang heeft tot de privé-repository (een lege opslag geeft anders hetzelfde "niet gevonden").
 async function checkAccess(useToken){
+  const hd={'Authorization':'Bearer '+useToken,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'};
   let res;
-  try{res=await fetch(GH_API+'/repos/'+DATA_REPO,{cache:'no-store',headers:{'Authorization':'Bearer '+useToken,'Accept':'application/vnd.github+json','X-GitHub-Api-Version':'2022-11-28'}})}
+  try{res=await fetch(GH_API+'/repos/'+DATA_REPO,{cache:'no-store',headers:hd})}
   catch(e){throw new ApiError('offline',0)}
   if(res.status===403&&res.headers.get('x-ratelimit-remaining')==='0') throw new ApiError('rate',403);
-  if(!res.ok) throw new ApiError('token',res.status);
+  if(res.ok) return;
+  if(res.status===401) throw new ApiError('token',401);
+  // Andere opslag? Zoek de opslag waar deze sleutel bij mag (zo hoeft niemand de naam in te typen)
+  let list=[];
+  try{const r=await fetch(GH_API+'/user/repos?per_page=100&sort=updated',{cache:'no-store',headers:hd});
+    if(r.status===401) throw new ApiError('token',401);
+    if(r.ok) list=await r.json();
+  }catch(e){ if(e instanceof ApiError) throw e; throw new ApiError('offline',0) }
+  const ok=(Array.isArray(list)?list:[]).filter(x=>x&&x.full_name&&(!x.permissions||x.permissions.push));
+  const pick=ok.find(x=>/boodschap|eten/i.test(x.name))||(ok.length===1?ok[0]:null);
+  if(!pick) throw new ApiError('norepo',404);
+  DATA_REPO=pick.full_name; lsSet('bs-repo',DATA_REPO); sha=null; etag=null;
 }
 async function fetchRemote(useToken, conditional){
   const r=await gh('GET', null, useToken, conditional&&etag?{'If-None-Match':etag}:null);
@@ -1901,8 +1952,12 @@ $('logout').addEventListener('click',()=>{
   if(pending.length&&!$('logout').dataset.sure){$('logout').dataset.sure='1';$('logout').textContent='Er wachten nog wijzigingen. Toch afmelden?';return}
   logout('');
 });
+function showSetup(on){$('setup').hidden=!on;$('loginForm').hidden=on;window.scrollTo(0,0)}
+$('setupBtn').addEventListener('click',()=>showSetup(true));
+$('setupDone').addEventListener('click',()=>{showSetup(false);$('nameInput').focus()});
 function showLogin(msg){
   $('app').hidden=true;$('login').hidden=false;$('lock').hidden=true;
+  if(/[?&#]nieuw/.test(location.search+location.hash)&&!lsGet('bs-ever')){showSetup(true);return}
   $('nameInput').value=myName;$('loginErr').textContent=msg||'';
   (myName?$('codeInput'):$('nameInput')).focus();
   if(!msg) tryStoredCredential();
@@ -1975,7 +2030,8 @@ $('loginForm').addEventListener('submit',async e=>{
     saveCredential(n,c);
     if($('useBio').checked&&bioAvailable()) enableLock();
   }catch(err){
-    $('loginErr').textContent = (err.kind==='token'||err.kind==='forbidden'||err.kind==='notfound')?'Deze sleutel werkt niet. Controleer of hij toegang heeft tot '+DATA_REPO+' (Contents: lezen en schrijven).'
+    $('loginErr').textContent = err.kind==='norepo'?'Deze sleutel mag nog bij geen enkele opslag. Kies bij de sleutel "Only select repositories" en je opslag (eten-en-boodschappen-data).'
+      : (err.kind==='token'||err.kind==='forbidden'||err.kind==='notfound')?'Deze sleutel werkt niet. Controleer of hij goed gekopieerd is en toegang heeft tot je opslag (Contents: lezen en schrijven).'
       : err.kind==='offline'?'Geen verbinding. Probeer het opnieuw zodra je internet hebt.'
       : err.kind==='rate'?'GitHub vraagt even rust. Probeer het over een paar minuten opnieuw.'
       : 'Er ging iets mis bij GitHub ('+err.kind+'). Probeer het opnieuw.';
