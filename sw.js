@@ -1,13 +1,13 @@
 /* Boodschappenlijst — service worker: zorgt dat de app opent zonder internet.
    De lijsten zelf komen altijd via api.php en worden in de app bewaard. */
-const CACHE = 'boodschappenlijst-v28';
+const CACHE = 'boodschappenlijst-v29';
 const SHELL = [
   './',
   './index.html',
   './manifest.webmanifest',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
-  './icons/apple-touch-icon.png'
+  './icons/icon-192.png?v=2',
+  './icons/icon-512.png?v=2',
+  './icons/apple-touch-icon.png?v=2'
 ];
 
 self.addEventListener('install', e => {

@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2E9464"/><stop offset="1" stop-color="#11523A"/></linearGradient>
+    <radialGradient id="glow" cx=".3" cy=".22" r=".75"><stop offset="0" stop-color="#FFFFFF" stop-opacity=".22"/><stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>
+    <linearGradient id="bag" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF8EA"/><stop offset="1" stop-color="#F1E2C2"/></linearGradient>
+    <linearGradient id="bread" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F2BE6A"/><stop offset="1" stop-color="#D48C3A"/></linearGradient>
+    <radialGradient id="tom" cx=".35" cy=".35" r=".7"><stop offset="0" stop-color="#FF7A5C"/><stop offset="1" stop-color="#D63A26"/></radialGradient>
+    <linearGradient id="badge" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFA53D"/><stop offset="1" stop-color="#E9701A"/></linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="116" fill="url(#glow)"/>
+  
+  <g transform="translate(256 256) scale(1.0) translate(-256 -256)">
+    <ellipse cx="256" cy="430" rx="150" ry="20" fill="#0B3523" opacity=".35"/>
+    <!-- stokbrood -->
+    <g transform="rotate(-24 196 190)">
+      <rect x="166" y="70" width="62" height="250" rx="31" fill="url(#bread)"/>
+      <path d="M180 112l34 -14M180 152l34 -14M180 192l34 -14M180 232l34 -14" stroke="#B9702A" stroke-width="7" stroke-linecap="round" opacity=".75"/>
+    </g>
+    <!-- bladgroen -->
+    <path d="M300 238C268 196 262 140 288 92c22 42 30 92 12 146z" fill="#8FD18A"/>
+    <path d="M318 240c4-58 30-104 74-128c-2 52-26 98-74 128z" fill="#5DB86A"/>
+    <path d="M296 236c6-34 18-66 0-110" stroke="#3E9150" stroke-width="5" fill="none" stroke-linecap="round" opacity=".6"/>
+    <!-- tomaat -->
+    <circle cx="352" cy="230" r="44" fill="url(#tom)"/>
+    <path d="M352 190l8 12 14-4-6 13 12 8-15 2-1 14-12-10-12 10-1-14-15-2 12-8-6-13 14 4z" fill="#3E9150"/>
+    <ellipse cx="337" cy="217" rx="10" ry="6" fill="#fff" opacity=".35" transform="rotate(-35 337 217)"/>
+    <!-- papieren tas -->
+    <path d="M132 236h248l-14 176a22 22 0 0 1-22 20H168a22 22 0 0 1-22-20z" fill="url(#bag)"/>
+    <path d="M128 222a10 10 0 0 1 10-10h236a10 10 0 0 1 10 10v26H128z" fill="#EADAB8"/>
+    <path d="M128 248h256" stroke="#D9C49A" stroke-width="4"/>
+    <path d="M196 276c0 34 26 52 60 52s60-18 60-52" stroke="#C9B183" stroke-width="10" fill="none" stroke-linecap="round"/>
+    <circle cx="196" cy="272" r="8" fill="#C9B183"/><circle cx="316" cy="272" r="8" fill="#C9B183"/>
+    <!-- bord met mes en vork -->
+    <circle cx="368" cy="378" r="74" fill="#FBF3E4"/>
+    <circle cx="368" cy="378" r="62" fill="url(#badge)"/>
+    <circle cx="368" cy="378" r="40" fill="none" stroke="#FFFFFF" stroke-opacity=".35" stroke-width="4"/>
+    <g fill="#FFFFFF">
+      <path d="M346 342v26a10 10 0 0 0 7 9.5V416a5 5 0 0 0 10 0v-38.5a10 10 0 0 0 7-9.5v-26h-5v24h-4v-24h-6v24h-4v-24z"/>
+      <path d="M388 342c-9 4-13 16-13 32 0 8 4 12 8 13V416a5 5 0 0 0 10 0V342z"/>
+    </g>
+  </g>
+</svg>

@@ -1,4 +1,4 @@
-# Boodschappenlijst
+# Eten & boodschappen
 
 Gedeelde boodschappen- en vakantielijsten voor thuis, als installeerbare app.
 
