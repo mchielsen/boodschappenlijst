@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="app-version" content="15-11 19:51">
+<meta name="app-version" content="15-11 19:53">
 <style>
 /* Eén smalle kolom zoals een boodschappenbriefje; vaste kop met lijst-tabs, invoer bovenaan.
    Supermarkt: groepen in AH-looproute. Vakantielijst: nalopen → kopen → inpakken → ingepakt. */
@@ -1072,6 +1072,9 @@ document.addEventListener('visibilitychange',()=>{
    en recipes[gerecht] = [ingrediënten] (onthouden zodra je een voorstel aanpast). */
 const MENU_ID='__menu';
 const FORK='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 1.5v4.2a1.6 1.6 0 0 0 3.2 0V1.5M5.6 1.5v13"/><path d="M11.5 14.5V1.5c-1.6.9-2.4 2.8-2.4 5.2 0 1.4.9 2.3 2.4 2.3"/></svg>';
+// Vast ritme per weekdag, als hint in het lege vakje (ma = 0). Jullie eigen hints in de data gaan voor.
+const DAY_HINTS=['soep','biefstuk','vis','gehakt','broodjes','',''];
+function dayHint(i){const h=view&&view.dayHints; return (h&&typeof h[i]==='string')?h[i]:DAY_HINTS[i]}
 const DAYS=['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
 
 /* Gangbare gerechten met wat je er meestal voor haalt (zout, peper en olie laten we weg) */
@@ -1225,7 +1228,7 @@ function renderMenu(){
     if(past&&!m) return; // voorbije dagen zonder gerecht niet tonen
     h+='<section class="day'+(iso===today?' today':'')+(past?' past':'')+'" data-date="'+iso+'"><div class="dayhead"><h3>'+DAYS[i]+' <span>'+d.getDate()+' '+MSHORT[d.getMonth()]+'</span></h3>'+(iso===today?'<span class="todaytag">Vandaag</span>':'')+'</div>';
     if(!m){
-      h+='<form class="dishform"><input type="text" class="dishin" list="dishList" placeholder="Wat eten we?" maxlength="80" enterkeyhint="done" autocomplete="off" aria-label="Gerecht op '+DAYS[i]+'"></form>';
+      h+='<form class="dishform"><input type="text" class="dishin" list="dishList" placeholder="Wat eten we?'+(dayHint(i)?' ('+esc(dayHint(i))+')':'')+'" maxlength="80" enterkeyhint="done" autocomplete="off" aria-label="Gerecht op '+DAYS[i]+'"></form>';
     }else{
       h+='<div class="dishrow"><button class="dishname" type="button" data-mact="dish">'+esc(m.dish)+'</button><button class="x" type="button" data-mact="delmeal" aria-label="Gerecht weghalen">'+XSVG+'</button></div>';
       if(m.ings.length) h+='<ul class="ings">'+m.ings.map(g=>'<li class="ing'+(g.on?'':' off')+(g.sent?' sent':'')+'" data-ing="'+esc(g.id)+'">'
