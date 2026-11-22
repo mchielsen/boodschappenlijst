@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="app-version" content="21-11 12:19">
+<meta name="app-version" content="22-11 20:04">
 <style>
 /* Eén smalle kolom zoals een boodschappenbriefje; vaste kop met lijst-tabs, invoer bovenaan.
    Supermarkt: groepen in AH-looproute. Vakantielijst: nalopen → kopen → inpakken → ingepakt. */
@@ -1247,8 +1247,8 @@ function renderMenu(){
   // Niet verversen terwijl je aan het typen bent; dat gebeurt zodra je klaar bent
   const ae=document.activeElement; let refocus=null;
   if(mv.contains(ae)&&ae.matches('input')){
-    if(ae.matches('.ingin')&&!ae.value) refocus='.day[data-date="'+ae.closest('.day')?.dataset.date+'"] .ingin'; // net iets toegevoegd: daarna verder typen
-    else if(ae.matches('.ideain')&&!ae.value) refocus='.ideain';
+    // leeg vak (net iets toegevoegd, of net naar een nieuw vak getikt): gewoon verversen en de cursor terugzetten
+    if(ae.matches('.dishin,.ingin,.ideain')&&!ae.value){const d=ae.closest('.day'); refocus=(d?'.day[data-date="'+d.dataset.date+'"] ':'')+'.'+ae.className.split(' ')[0]}
     else {UI.renderPending=true;return}
   }
   const ds=weekDates(UI.week), today=todayStr(), all=meals();
@@ -1293,6 +1293,7 @@ function renderMenu(){
      +'<select id="menuTarget" aria-label="Op welke lijst">'+shopLists().map(l=>'<option value="'+esc(l.id)+'"'+(l.id===t.id?' selected':'')+'>'+esc(l.name)+'</option>').join('')+'</select></div>'
     :'<p class="hint">Maak eerst een boodschappenlijst om ingrediënten op te zetten.</p>')+'</div>';
   mv.innerHTML=h;
+  if(!refocus&&UI.menuRefocus){refocus=UI.menuRefocus;UI.menuRefocus=null}
   if(refocus){const el=mv.querySelector(refocus); if(el) el.focus({preventScroll:true})}
   // suggesties voor gerechten: jullie eigen gerechten en de bekende
   const names=new Set();
@@ -1346,7 +1347,7 @@ $('menuView').addEventListener('submit',e=>{
   e.preventDefault();
   if(e.target.matches('.ideaform')){addIdea(e.target.querySelector('input'));return}
   const day=e.target.closest('.day'); if(!day) return; const date=day.dataset.date;
-  if(e.target.matches('.dishform')){const v=e.target.querySelector('input').value; e.target.querySelector('input').blur(); setDish(date,v); return}
+  if(e.target.matches('.dishform')){const inp=e.target.querySelector('input'); const v=inp.value; inp.value=''; inp.blur(); setDish(date,v); return}
   if(e.target.matches('.ingform')){
     const inp=e.target.querySelector('input'); const parts=inp.value.split(',').map(s=>cap(s.trim())).filter(Boolean); inp.value='';
     const m=mealOf(date); if(!m||!parts.length) return;
@@ -1371,6 +1372,18 @@ $('menuView').addEventListener('click',e=>{
   if(a==='ing'){inlineEdit(b,g.text,v=>{if(!v){m.ings=m.ings.filter(x=>x!==g)}else{g.text=cap(v);g.sent=false} saveMeal(date,m,true)});return}
 });
 $('menuView').addEventListener('change',e=>{if(e.target.id==='menuTarget'){UI.target=e.target.value;lsSet('bs-target',UI.target)}});
+// Opslaan zodra je het veld verlaat of op Enter drukt, ook als het toetsenbord geen "Klaar" stuurt
+const MENU_INPUTS='.dishin,.ingin,.ideain';
+$('menuView').addEventListener('keydown',e=>{
+  if(e.target.matches(MENU_INPUTS)&&(e.key==='Enter'||e.keyCode===13)&&!e.isComposing){e.preventDefault();e.target.form.requestSubmit()}
+});
+$('menuView').addEventListener('focusout',e=>{
+  const t=e.target; if(!t.matches||!t.matches(MENU_INPUTS)||!t.value.trim()||!t.form) return;
+  // tikte je meteen in een ander vak? Dan staat de cursor daar na het opslaan weer
+  const n=e.relatedTarget; UI.menuRefocus=null;
+  if(n&&n.matches&&n.matches(MENU_INPUTS)){const d=n.closest('.day'); UI.menuRefocus=(d?'.day[data-date="'+d.dataset.date+'"] ':'')+'.'+n.className.split(' ')[0]}
+  t.form.requestSubmit();
+},true);
 $('menuView').addEventListener('focusout',()=>setTimeout(()=>{
   if(UI.renderPending&&!$('menuView').contains(document.activeElement)) render();
 },60));
