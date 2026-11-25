@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="app-version" content="23-11 17:36">
+<meta name="app-version" content="25-11 12:51">
 <style>
 /* Eén smalle kolom zoals een boodschappenbriefje; vaste kop met lijst-tabs, invoer bovenaan.
    Supermarkt: groepen in AH-looproute. Vakantielijst: nalopen → kopen → inpakken → ingepakt. */
@@ -523,7 +523,7 @@ const CATS = [
  ['baby','Baby en kind','luiers billendoekjes babydoekjes flesvoeding babyvoeding knijpfruit babyshampoo pampers nutrilon olvarit zwitsal dreumesvoeding peutervoeding babypap fruithapje groentehapje speen spenen zwemluiers luierdoekjes babyolie babylotion slabbetje'],
  ['huishouden','Huishouden','gedemineraliseerd water gedestilleerd water demiwater demi water accuwater gedemineraliseerd gedestilleerd groene zeep witte reus wc blokjes schoonmaak schoonmaakmiddel reiniger allesreiniger afvoerreiniger ontstopper ontvetter ovenreiniger toiletreiniger wc-eend wc-blokjes badkamerreiniger kalkreiniger ontkalker glorix bleek chloor hg schoonmaakazijn soda afwasmiddel vaatwastabletten vaatwasblokjes vaatwaszout glansspoeler wasmiddel waspoeder wasverzachter wasparfum vlekkenmiddel vlekkenverwijderaar sponsjes spons schuursponsjes vaatdoekjes vaatdoek microvezeldoekjes dweil afwasborstel stofzuigerzakken huishoudhandschoenen glasreiniger meubelpoets robijn ariel persil dreft sunlight finish ajax dettol vanish glassex biotex strijkwater wasstrips toiletblok schuurmiddel wc papier wc-papier toiletpapier keukenpapier keukenrol tissues zakdoekjes vuilniszakken afvalzakken pedaalemmerzakken aluminiumfolie bakpapier vershoudfolie diepvrieszakjes boterhamzakjes theedoeken page edet zewa albal duracell varta swirl huishoudfolie vershoudbakjes diepvriesbakjes afvalbakzakken gft-zakken stofdoek muggenstekker mierenlokdoos vliegenvanger insectenspray'],
  ['huisdier','Huisdier','huisdier kattenvoer hondenvoer kattenbakvulling dierenvoer kattensnoepjes hondensnoepjes kattenbrokken hondenbrokken whiskas felix sheba pedigree brekkies kattenbakkorrels kattensnacks hondensnacks kauwbot vogelzaad visvoer konijnenvoer knaagdiervoer cavia hamstervoer'],
- ['koken','Koken, tafelen, vrije tijd','batterijen lampjes kaarsen waxinelichtjes servetten houtskool briketten aanmaakblokjes barbecue bbq aansteker lucifers grillspiesen satestokjes batterij gloeilamp ledlamp wegwerpbekers bordjes rietjes ballonnen slingers cadeaupapier wenskaart verjaardagskaart tijdschrift potgrond plantenvoeding koelelement tafelkleed sterretjes'],
+ ['koken','Koken, tafelen, vrije tijd','likkepot likkepotten pannenlikker pannenlikkers spatel spatels garde keukenschaar bakvorm cakevorm springvorm ovenschaal vergiet rasp dunschiller schilmesje koksmes snijplank houten lepel pollepel schuimspaan soeplepel tang keukentang maatbeker mengkom keukenweegschaal deegroller bakpapier-houder pan koekenpan braadpan wok steelpan kookpan ovenwant pannenlap keukengerei vershoudfolie-dispenser batterijen lampjes kaarsen waxinelichtjes servetten houtskool briketten aanmaakblokjes barbecue bbq aansteker lucifers grillspiesen satestokjes batterij gloeilamp ledlamp wegwerpbekers bordjes rietjes ballonnen slingers cadeaupapier wenskaart verjaardagskaart tijdschrift potgrond plantenvoeding koelelement tafelkleed sterretjes'],
  ['diepvries','Diepvries','gyoza gyozas dumplings spinazie a la creme diepvries ijs ijsjes roomijs magnum friet patat frites pizza vissticks bitterballen kroketten frikandel frikandellen loempia loempias ijsblokjes bladerdeeg kipnuggets diepvriesgroente iglo mccain aviko mora jerry edamame'],
  ['overig','Overig','']
 ];
@@ -539,7 +539,7 @@ for(const [cat,,words] of CATS){
 }
 KW.sort((a,b)=>b.k.length-a.k.length);
 // Korte of dubbelzinnige woorden tellen alleen als los woord ("port" niet in "sportdrank")
-const WHOLE = new Set(['hg','port','rose','peer','cake','pads','cups','mayo','mais','vega','pate']);
+const WHOLE = new Set(['rasp','tang','pan','wok','garde','hg','port','rose','peer','cake','pads','cups','mayo','mais','vega','pate']);
 const UNITS = new Set('x st stuk stuks kg g gr gram l liter ml cl pak pakken pakje pakjes zak zakje zakjes zakken fles flessen flesje blik blikken blikje bakje bakjes doos doosje dozen pot potje potten krat tray bos bosje net netje rol rollen tube grote kleine groot klein'.split(' '));
 function norm(t){return String(t).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9&\- ]+/g,' ').replace(/\s+/g,' ').trim()}
 function itemKey(t){
