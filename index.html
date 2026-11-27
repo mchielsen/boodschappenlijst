@@ -16,7 +16,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="robots" content="noindex, nofollow">
 <meta name="referrer" content="no-referrer">
-<meta name="app-version" content="25-11 14:32">
+<meta name="app-version" content="27-11 16:33">
 <style>
 /* Eén smalle kolom zoals een boodschappenbriefje; vaste kop met lijst-tabs, invoer bovenaan.
    Supermarkt: groepen in AH-looproute. Vakantielijst: nalopen → kopen → inpakken → ingepakt. */
@@ -1108,12 +1108,12 @@ const FORK='<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-wi
 // Vast ritme per weekdag als hint in het lege vakje (ma = 0); staat per huishouden in de data (dayHints)
 const DAY_HINTS=['','','','','','',''];
 function dayHint(i){const h=view&&view.dayHints; return (h&&typeof h[i]==='string')?h[i]:DAY_HINTS[i]}
-// Ingeklapte gerechten (per telefoon onthouden)
 const CHEV='<svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 4.5l3.5 3.5 3.5-3.5"/></svg>';
-let folded=new Set(parse(lsGet('bs-menu-folded'))||[]);
-function isFolded(d){return folded.has(d)}
-function setFolded(d,on){if(on) folded.add(d); else folded.delete(d);
-  const keep=isoOf(new Date(Date.now()-35*864e5)); folded=new Set([...folded].filter(x=>x>=keep)); lsSet('bs-menu-folded',JSON.stringify([...folded]))}
+// Bij openen van de app zijn alle gerechten ingeklapt; wat je openklapt blijft open tot je de app sluit
+let unfolded=new Set();
+function isFolded(d){return !unfolded.has(d)}
+function setFolded(d,on){if(on) unfolded.delete(d); else unfolded.add(d)}
+try{localStorage.removeItem('bs-menu-folded')}catch(e){}
 const DAYS=['Maandag','Dinsdag','Woensdag','Donderdag','Vrijdag','Zaterdag','Zondag'];
 
 function meals(){return (view&&view.meals)||{}}
@@ -1213,6 +1213,7 @@ function setDish(date,dish){
   dish=cap(dish.trim().replace(/\s+/g,' ')); const old=mealOf(date);
   if(!dish){ if(old) queue([{type:'setMeal',date,meal:null}]); return }
   if(old&&recipeKey(old.dish)===recipeKey(dish)){old.dish=dish;saveMeal(date,old,false);return}
+  setFolded(date,false);
   const ings=mkIngs(suggestIngs(dish));
   saveMeal(date,{dish,ings,by:byValue(),t:Date.now()},false);
   if(!ings.length) setTimeout(()=>{const f=document.querySelector('.day[data-date="'+date+'"] .ingin');if(f)f.focus()},50);
